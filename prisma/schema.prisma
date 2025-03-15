@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum pour les rôles des utilisateurs
+enum Role {
+  EMPLOYE
+  RESPONSABLE
+  ADMINISTRATEUR
+}
+
+// Enum pour le statut des demandes
+enum StatutDemande {
+  SOUMISE
+  APPROUVEE
+  REJETEE
+}
+
+// Enum pour le type de responsable
+enum TypeResponsable {
+  RH
+  CHEF_EQUIPE
+}
+
+enum Statut {
+  PRESENT
+  ABSENT
+  RETARD
+}
+
+// Classe mère Utilisateur
+model Utilisateur {
+  id             String          @id @default(uuid())
+  nom            String
+  prenom         String
+  email          String          @unique
+  motDePasse     String
+  role           Role
+  employe        Employe?
+  responsable    Responsable?
+  administrateur Administrateur?
+}
+
+model Employe {
+  id               String         @id @default(uuid())
+  utilisateur      Utilisateur    @relation(fields: [id], references: [id])
+  pointages       Pointage[]
+  demandes        Demande[]
+  notifications   Notification[]
+  responsable     Responsable?   @relation("EmployeResponsable", fields: [responsableId], references: [id])
+  responsableId   String?
+
+  soldeConges     Int            @default(0)  //  Solde de congés en jours
+  heuresTravail   Float          @default(0)  //  Total des heures de travail
+  heuresSupp      Float          @default(0)  //  Total des heures supplémentaires
+  heureDebutTravail DateTime     @default(now())// Heure normale de début de travail
+}
+
+
+// Responsable hérite de Utilisateur
+model Responsable {
+  id               String           @id @default(uuid())
+  utilisateur      Utilisateur      @relation(fields: [id], references: [id])
+  typeResponsable  TypeResponsable?
+  employes         Employe[]        @relation("EmployeResponsable") // Relation inverse nommée
+  notifications    Notification[]
+  administrateur   Administrateur?  @relation(fields: [administrateurId], references: [id])
+  administrateurId String?
+}
+
+// Administrateur hérite de Utilisateur
+model Administrateur {
+  id           String        @id @default(uuid())
+  utilisateur  Utilisateur   @relation(fields: [id], references: [id])
+  responsables Responsable[] 
+}
+
+// Pointage lié aux employés
+model Pointage {
+  id           String    @id @default(uuid())
+  employe      Employe   @relation(fields: [employeId], references: [id])
+  employeId    String
+  date         DateTime
+  heureArrivee DateTime
+  heureDepart  DateTime?
+  statut       Statut    @default(ABSENT)// Statut du pointage (PRESENT, ABSENT, RETARD, etc.)
+}
+
+// Demande (classe mère pour Congé et Autorisation de Sortie)
+model Demande {
+  id        String        @id @default(uuid())
+  employe   Employe       @relation(fields: [employeId], references: [id])
+  employeId String
+  type      String // "CONGE" ou "AUTORISATION_SORTIE"
+  dateDebut DateTime
+  dateFin   DateTime?
+  statut    StatutDemande @default(SOUMISE)
+  raison    String?
+}
+
+// Notification liée aux employés et responsables
+model Notification {
+  id            String       @id @default(uuid())
+  message       String
+  employe       Employe?     @relation(fields: [employeId], references: [id])
+  employeId     String?
+  responsable   Responsable? @relation(fields: [responsableId], references: [id])
+  responsableId String?
+  dateEnvoi     DateTime     @default(now())
+}
