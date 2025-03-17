@@ -66,7 +66,7 @@ model Employe {
 model Responsable {
   id               String           @id @default(uuid())
   utilisateur      Utilisateur      @relation(fields: [id], references: [id])
-  typeResponsable  TypeResponsable?
+  typeResponsable  TypeResponsable? //Enum pour le type de responsable RH /CHEF_EQUIPE
   employes         Employe[]        @relation("EmployeResponsable") // Relation inverse nommée
   notifications    Notification[]
   administrateur   Administrateur?  @relation(fields: [administrateurId], references: [id])
@@ -82,13 +82,15 @@ model Administrateur {
 
 // Pointage lié aux employés
 model Pointage {
-  id           String    @id @default(uuid())
-  employe      Employe   @relation(fields: [employeId], references: [id])
-  employeId    String
-  date         DateTime
-  heureArrivee DateTime
-  heureDepart  DateTime?
-  statut       Statut    @default(ABSENT)// Statut du pointage (PRESENT, ABSENT, RETARD, etc.)
+  id               String    @id @default(uuid())
+  employe          Employe   @relation(fields: [employeId], references: [id])
+  employeId        String
+  date             DateTime
+  heureArrivee     DateTime
+  heureDepart      DateTime?
+  heureDepartDej   DateTime? // Début de la pause déjeuner
+  heureRetourDej   DateTime? // Fin de la pause déjeuner
+  statut           Statut    @default(ABSENT)// Statut du pointage (PRESENT, ABSENT, RETARD, etc.)
 }
 
 // Demande (classe mère pour Congé et Autorisation de Sortie)

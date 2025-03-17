@@ -3,23 +3,23 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { EmployeService } from './employe.service';
 import { CreateEmployeDto } from './dto/create-employe.dto';
 import { UpdateEmployeDto } from './dto/update-employe.dto';
-import { JwtAuthGuard } from 'src/auth/guards/auth.guard';
+
 
 @ApiTags('Employés')
 @Controller('employes')
 export class EmployeController {
   constructor(private readonly employeService: EmployeService) {}
 
-  // ✅ Créer un employé
-  @Post()
-  create(@Body() createEmployeDto: CreateEmployeDto) {
-    return this.employeService.create(createEmployeDto);
-  }
+  // ✅ Créer un nouvel employé
+@Post()
+async create(@Body() createEmployeDto: CreateEmployeDto) {
+  return this.employeService.create(createEmployeDto );
+}
+
+
 
   // ✅ Récupérer tous les employés
   @Get()
-  @ApiBearerAuth() // Ajoute un bouton "Authorize" dans Swagger
-  @UseGuards(JwtAuthGuard) // Protège toutes les routes de ce contrôleur
   findAll() {
     return this.employeService.findAll();
   }

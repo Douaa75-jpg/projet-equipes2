@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsEnum , MinLength , IsUUID} from 'class-validator';
+import { IsEmail, IsString, IsEnum , MinLength , IsUUID , IsOptional } from 'class-validator';
 
 // Définir les rôles comme une énumération possible
 export class CreateUtilisateurDto {
@@ -18,4 +18,8 @@ export class CreateUtilisateurDto {
   @MinLength(6)  // Optionnel : pour imposer une longueur minimale au mot de passe
   motDePasse: string;  // Champ ajouté pour le mot de passe
 
+
+  @IsOptional()
+  @IsUUID()
+  responsableId?: string;
 }

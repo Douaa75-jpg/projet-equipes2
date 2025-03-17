@@ -12,44 +12,41 @@ export class EmployeService {
               private readonly responsableService: ResponsableService
              ) {}
 
-  // ✅ Création d'un employé
+  // ✅ Créer un nouvel employé
   async create(createEmployeDto: CreateEmployeDto) {
-    
-    if (!createEmployeDto.responsableId) {
-      throw new Error("id de responsable doit etre présent.");
-    }
-   
-    // Vérifier si le responsable existe
-    const responsable = await this.prisma.responsable.findUnique({
-      where: { id: createEmployeDto.responsableId },
+    // Vérifier si l'email existe déjà
+    const existingUser = await this.prisma.utilisateur.findUnique({
+      where: { email: createEmployeDto.email },
     });
-
-    if (!responsable) {
-      throw new Error('Responsable (chef d\'équipe) non trouvé.');
+  
+    if (existingUser) {
+      throw new BadRequestException('Cet email est déjà utilisé.');
     }
-
-    // Hacher le mot de passe avant de l'enregistrer
+  
+    // Hacher le mot de passe
     const hashedPassword = await bcrypt.hash(createEmployeDto.motDePasse, 10);
-
-    return this.prisma.employe.create({
+  
+    // Créer l'utilisateur
+    const utilisateur = await this.prisma.utilisateur.create({
       data: {
-        utilisateur: {
-          create: {
-            nom: createEmployeDto.nom,
-            prenom: createEmployeDto.prenom,
-            email: createEmployeDto.email,
-            role: 'EMPLOYE', // Définir le rôle
-            motDePasse: hashedPassword, // Ajouter le mot de passe
-          },
-        },
-        responsable: {
-          connect: {
-            id: createEmployeDto.responsableId, // Lier à un responsable existant
-          },
-        },
+        nom: createEmployeDto.nom,
+        prenom: createEmployeDto.prenom,
+        email: createEmployeDto.email,
+        motDePasse: hashedPassword,
+        role: "EMPLOYE", // Assurez-vous que cette valeur correspond à l'énumération Role
+      },
+    });
+  
+    // Créer l'employé en associant l'utilisateur
+    const employe = await this.prisma.employe.create({
+      data: {
+        id: utilisateur.id, // Utilisation de l'ID de l'utilisateur existant
+        responsableId: createEmployeDto.responsableId || null,
       },
       select: {
         id: true,
+        
+        responsableId: true,
         utilisateur: {
           select: {
             id: true,
@@ -58,21 +55,14 @@ export class EmployeService {
             email: true,
           },
         },
-        responsable: {
-          select: {
-            id: true,
-            utilisateur: {
-              select: {
-                nom: true,
-                prenom: true,
-              },
-            },
-          },
-        },
       },
     });
+  
+    return employe;
   }
   
+
+
   // Trouver tous les employés
   async findAll() {
     return this.prisma.employe.findMany({
@@ -242,6 +232,21 @@ export class EmployeService {
     return { heuresTravail, heuresSupp };
   }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
   // ✅ Obtenir l'historique des absences
   async getHistoriqueAbsences(employeId: string) {
     return this.prisma.demande.findMany({

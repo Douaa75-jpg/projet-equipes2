@@ -15,5 +15,5 @@ export class CreateEmployeDto {
 
   @IsUUID()
   @IsOptional()
-  responsableId?: string; // Optionnel, seulement si l'employé a un responsable
+  responsableId?: string  | null; // Optionnel, seulement si l'employé a un responsable
 }

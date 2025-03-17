@@ -46,9 +46,23 @@ export class PointageController {
     return this.pointageService.remove(id);
   }
 
-  @Get(':employeId/heures-travail')
+  @Get('calcul-heures')
   @ApiOperation({ summary: 'Calculer les heures de travail et les heures supplémentaires' })
-  async calculerHeuresTravail(@Param('employeId') employeId: string) {
-    return this.pointageService.calculerHeuresTravail(employeId);
+  async calculerHeuresTravail(
+    @Param('employeId') employeId: string,
+    @Param('dateDebut') dateDebut: string,
+    @Param('dateFin') dateFin: string
+  ) {
+    return this.pointageService.calculerHeuresTravail(employeId, dateDebut, dateFin);
+  }
+
+  // ✅ Nouvelle méthode pour enregistrer la pause déjeuner
+  @Patch('pause-dejeuner/:id')
+  @ApiOperation({ summary: 'Enregistrer les heures de pause déjeuner' })
+  async enregistrerPauseDejeuner(
+    @Param('id') id: string,
+    @Body() updatePointageDto: UpdatePointageDto
+  ) {
+    return this.pointageService.enregistrerPauseDejeuner(id, updatePointageDto);
   }
 }

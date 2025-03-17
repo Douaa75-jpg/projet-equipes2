@@ -14,8 +14,16 @@ export class UtilisateursService {
     });
   }
 
-  // Créer un utilisateur avec gestion des rôles
+  // Créer un utilisateur avec gestion des rôles et responsableId pour les employés
   async create(createUtilisateurDto: CreateUtilisateurDto) {
+
+    const existingUser = await this.prisma.utilisateur.findUnique({
+      where: { email: createUtilisateurDto.email },
+    });
+  
+    if (existingUser) {
+      throw new Error('Cet email est déjà utilisé.');
+    }
     // Hacher le mot de passe avant de l'enregistrer
     const hashedPassword = await bcrypt.hash(createUtilisateurDto.motDePasse, 10);
 
@@ -23,24 +31,24 @@ export class UtilisateursService {
     const utilisateur = await this.prisma.utilisateur.create({
       data: {
         ...createUtilisateurDto,
-        motDePasse: hashedPassword,  // Mot de passe haché
+        motDePasse: hashedPassword, // Mot de passe haché
       },
     });
 
     // Logique pour gérer les rôles des utilisateurs
     if (utilisateur.role === 'EMPLOYE') {
-      const responsable = await this.prisma.responsable.findFirst({
-        where: { typeResponsable: 'CHEF_EQUIPE' },
-      });
+      const responsableId = createUtilisateurDto.responsableId;
 
-      if (!responsable) {
-        throw new Error('Aucun responsable CHEF_EQUIPE trouvé.');
+      // Si aucun responsableId n'est fourni, l'utilisateur sera créé sans responsable
+      if (!responsableId) {
+        throw new Error('Veuillez spécifier un responsable pour l\'employé.');
       }
 
+      // Créer l'employé avec le responsable spécifié
       await this.prisma.employe.create({
         data: {
-          utilisateur: { connect: { id: utilisateur.id } },
-          responsable: { connect: { id: responsable.id } },
+          id: utilisateur.id,
+          responsableId: responsableId, // Responsabilité assignée manuellement
         },
       });
     } else if (utilisateur.role === 'ADMINISTRATEUR') {
@@ -58,6 +66,31 @@ export class UtilisateursService {
     }
 
     return utilisateur;
+  }
+
+
+   // Méthode pour assigner un responsable à un employé
+   async assignerResponsable(id: string, responsableId: string) {
+    const utilisateur = await this.prisma.utilisateur.findUnique({
+      where: { id },
+    });
+
+    if (!utilisateur) {
+      throw new Error('Utilisateur non trouvé');
+    }
+
+    if (utilisateur.role !== 'EMPLOYE') {
+      throw new Error('Seul un employé peut se voir assigner un responsable');
+    }
+
+    const employe = await this.prisma.employe.update({
+      where: { id: utilisateur.id },
+      data: {
+        responsableId: responsableId, // Assignation du responsable
+      },
+    });
+
+    return employe;
   }
 
   // Récupérer tous les utilisateurs
