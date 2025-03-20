@@ -1,11 +1,12 @@
-import { Controller, Get, Post, Body, Param, Put, Delete ,Patch} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param,Request, Put, Delete,UseGuards ,Patch} from '@nestjs/common';
 import { UtilisateursService } from './utilisateur.service';
 import { CreateUtilisateurDto } from './dto/create-utilisateur.dto';
 import { UpdateUtilisateurDto } from './dto/update-utilisateur.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
-
+import { AuthGuard } from '@nestjs/passport';
 @ApiTags('Utilisateurs')
 @Controller('utilisateurs')
+
 export class UtilisateursController {
   constructor(private readonly utilisateursService: UtilisateursService) {}
 
@@ -39,10 +40,12 @@ export class UtilisateursController {
 
 
   // Obtenir tous les utilisateurs
+  @UseGuards(AuthGuard('jwt'))
   @Get()
   @ApiOperation({ summary: 'Obtenir tous les utilisateurs' })
   @ApiResponse({ status: 200, description: 'Liste des utilisateurs récupérée avec succès' })
-  async findAll() {
+  async findAll(@Request() req) {
+    console.log('Utilisateur Authentifié:', req.user);
     return this.utilisateursService.findAll();
   }
 
@@ -66,7 +69,7 @@ export class UtilisateursController {
   @Delete(':id')
   @ApiOperation({ summary: 'Supprimer un utilisateur' })
   @ApiResponse({ status: 200, description: 'Utilisateur supprimé avec succès' })
-  async remove(@Param('id') id: string) {
-    return this.utilisateursService.remove(id);
+  async remove(@Request() req, @Param('id') id: string){
+    return this.utilisateursService.remove(req.user, id);
   }
 }

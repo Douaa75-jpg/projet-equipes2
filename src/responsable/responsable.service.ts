@@ -1,9 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateResponsableDto } from './dto/create-responsable.dto';
 import { UpdateResponsableDto } from './dto/update-responsable.dto';
 import * as bcrypt from 'bcrypt';
-
 
 @Injectable()
 export class ResponsableService {
@@ -11,10 +10,20 @@ export class ResponsableService {
 
   // Créer un responsable
   async create(createResponsableDto: CreateResponsableDto) {
+    // Vérification de l'email existant
+    const existingUser = await this.prisma.utilisateur.findUnique({
+      where: { email: createResponsableDto.email },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('L\'email est déjà utilisé.');
+    }
+
     // Générer un sel et hacher le mot de passe
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(createResponsableDto.motDePasse, salt);
 
+    // Création du responsable avec l'utilisateur associé
     return this.prisma.responsable.create({
       data: {
         typeResponsable: createResponsableDto.typeResponsable,
@@ -38,7 +47,7 @@ export class ResponsableService {
   // Trouver tous les responsables
   async findAll() {
     return this.prisma.responsable.findMany({
-      select: { // Sélectionner uniquement id et typeResponsable
+      select: {
         id: true,
         typeResponsable: true,
       },
@@ -47,17 +56,37 @@ export class ResponsableService {
 
   // Trouver un responsable par ID
   async findOne(id: string) {
-    return this.prisma.responsable.findUnique({
+    const responsable = await this.prisma.responsable.findUnique({
       where: { id },
-      select: { // Sélectionner uniquement id et typeResponsable
+      select: {
         id: true,
         typeResponsable: true,
       },
     });
+
+    if (!responsable) {
+      throw new NotFoundException(`Responsable avec l'ID ${id} introuvable`);
+    }
+
+    return responsable;
   }
 
   // Mettre à jour un responsable
   async update(id: string, updateResponsableDto: UpdateResponsableDto) {
+    // Vérification des données d'entrée
+    if (!updateResponsableDto.nom || !updateResponsableDto.email) {
+      throw new BadRequestException('Nom et email sont requis pour la mise à jour');
+    }
+
+    // Vérifier si un responsable avec le même email existe déjà
+    const existingUser = await this.prisma.utilisateur.findUnique({
+      where: { email: updateResponsableDto.email },
+    });
+
+    if (existingUser && existingUser.id !== id) {
+      throw new BadRequestException('L\'email est déjà utilisé par un autre responsable.');
+    }
+
     let updatedData: any = {
       nom: updateResponsableDto.nom,
       prenom: updateResponsableDto.prenom,
@@ -87,6 +116,15 @@ export class ResponsableService {
 
   // Supprimer un responsable
   async remove(id: string) {
+    // Vérifier si le responsable existe
+    const responsable = await this.prisma.responsable.findUnique({
+      where: { id },
+    });
+
+    if (!responsable) {
+      throw new NotFoundException(`Responsable avec l'ID ${id} introuvable`);
+    }
+
     return this.prisma.responsable.delete({
       where: { id },
     });

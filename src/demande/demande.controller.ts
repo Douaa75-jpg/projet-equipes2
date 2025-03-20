@@ -1,7 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { DemandeService } from './demande.service';
 import { CreateDemandeDto } from './dto/create-demande.dto';
-import { UpdateDemandeDto } from './dto/update-demande.dto';
 
 @Controller('demande')
 export class DemandeController {
@@ -22,9 +21,14 @@ export class DemandeController {
     return this.demandeService.findOne(id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateDemandeDto: UpdateDemandeDto) {
-    return this.demandeService.update(id, updateDemandeDto);
+  @Patch(':id/approve')
+  approve(@Param('id') id: string, @Body('userId') userId: string) {
+    return this.demandeService.approve(id, userId);
+  }
+
+  @Patch(':id/reject')
+  reject(@Param('id') id: string, @Body('userId') userId: string) {
+    return this.demandeService.reject(id, userId);
   }
 
   @Delete(':id')

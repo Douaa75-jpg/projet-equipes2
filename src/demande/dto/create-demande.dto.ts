@@ -1,24 +1,24 @@
-import { IsEnum, IsDate, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsDateString, IsOptional, IsString } from 'class-validator';
 import { StatutDemande } from '@prisma/client';
 
 export class CreateDemandeDto {
   @IsString()
-  employeId: string;  // On ajoute l'ID de l'employé
+  employeId: string;  
 
   @IsString()
-  type: string;  // Ajoute le type de la demande
+  type: string;  
 
-  @IsDate()
-  dateDebut: Date;
+  @IsDateString() // ✅ Accepte uniquement "YYYY-MM-DD"
+  dateDebut: string;
 
   @IsOptional()
-  @IsDate()
-  dateFin?: Date;
+  @IsDateString() // ✅ Accepte uniquement "YYYY-MM-DD"
+  dateFin?: string;
 
   @IsEnum(StatutDemande)
-  statut: StatutDemande;
+  statut: StatutDemande = StatutDemande.SOUMISE;
 
-  @IsOptional()  // Optionnel si la raison est fournie
+  @IsOptional()  
   @IsString()
   raison?: string;
 }

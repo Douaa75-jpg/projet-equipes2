@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException , BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreatePointageDto } from './dto/create-pointage.dto';
 import { UpdatePointageDto } from './dto/update-pointage.dto';
@@ -29,7 +29,7 @@ export class PointageService {
     });
   
     if (existingPointage) {
-      throw new Error("L'employé a déjà pointé ce jour.");
+      throw new BadRequestException("L'employé a déjà pointé ce jour.");
     }
   
     // نحدد بداية اليوم الساعة 8 صباحًا UTC

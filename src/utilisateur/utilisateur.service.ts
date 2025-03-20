@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable ,ForbiddenException,NotFoundException} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUtilisateurDto } from './dto/create-utilisateur.dto';
 import * as bcrypt from 'bcrypt';
@@ -95,15 +95,25 @@ export class UtilisateursService {
 
   // Récupérer tous les utilisateurs
   async findAll() {
-    return this.prisma.utilisateur.findMany();
+    const users = await this.prisma.utilisateur.findMany();
+    return users.map(({ motDePasse, ...userSansMotDePasse }) => userSansMotDePasse);
   }
+  
 
   // Récupérer un utilisateur par ID
   async findOne(id: string) {
-    return this.prisma.utilisateur.findUnique({
+    const user = await this.prisma.utilisateur.findUnique({
       where: { id },
     });
+  
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+  
+    const { motDePasse, ...userSansMotDePasse } = user;
+    return userSansMotDePasse;
   }
+  
 
   // Mettre à jour un utilisateur
   async update(id: string, updateUtilisateurDto) {
@@ -114,9 +124,21 @@ export class UtilisateursService {
   }
 
   // Supprimer un utilisateur
-  async remove(id: string) {
-    return this.prisma.utilisateur.delete({
-      where: { id },
-    });
+  async remove(requestingUser: any, id: string) {
+    const utilisateur = await this.prisma.utilisateur.findUnique({ where: { id } });
+
+    if (!utilisateur) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    // منع الموظف من حذف الإداريين أو المسؤولين
+    if (utilisateur.role === 'ADMINISTRATEUR' || utilisateur.role === 'RESPONSABLE') {
+      if (requestingUser.role === 'EMPLOYE') {
+        throw new ForbiddenException('Vous n\'avez pas le droit de supprimer un administrateur ou un responsable.');
+      }
+    }
+
+    return this.prisma.utilisateur.delete({ where: { id } });
   }
 }
+
