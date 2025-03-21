@@ -33,6 +33,12 @@ enum Statut {
   RETARD
 }
 
+enum StatutTache {
+  A_FAIRE
+  EN_COURS
+  TERMINEE
+}
+
 // Classe mère Utilisateur
 model Utilisateur {
   id             String          @id @default(uuid())
@@ -58,9 +64,19 @@ model Employe {
   soldeConges     Int            @default(0)  //  Solde de congés en jours
   heuresTravail   Float          @default(0)  //  Total des heures de travail
   heuresSupp      Float          @default(0)  //  Total des heures supplémentaires
-  heureDebutTravail DateTime     @default(now())// Heure normale de début de travail
+  taches           Tache[]
 }
 
+model Tache {
+  id          String   @id @default(uuid())
+  employe     Employe  @relation(fields: [employeId], references: [id])
+  employeId   String
+  titre       String
+  description String?
+  date        DateTime @default(now()) // Date d'ajout de la tâche
+  statut      StatutTache @default(A_FAIRE) // "A_FAIRE", "EN_COURS", "TERMINEE"
+  dateLimite  DateTime?
+}
 
 // Responsable hérite de Utilisateur
 model Responsable {

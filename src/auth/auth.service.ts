@@ -34,13 +34,13 @@ export class AuthService {
 
   async login(user: any) {
     this.logger.debug(`Connexion de l'utilisateur : ${user.email}`);
-
+  
     const payload = { id: user.id, email: user.email, role: user.role };
     const access_token = this.jwtService.sign(payload);
-
+  
     this.logger.debug(`Token généré pour l'utilisateur : ${user.email}`);
     this.logger.debug(`Token : ${access_token}`);
-
+  
     return {
       access_token,
       user: {
@@ -49,6 +49,13 @@ export class AuthService {
         role: user.role,
       },
     };
-    
   }
-}
+
+  async logout() {
+    this.logger.debug('Déconnexion de l\'utilisateur');
+    // Dans le cas de JWT, le logout se fait généralement côté client,
+    // il faut supprimer le token du stockage local ou du cookie côté client.
+    return { message: 'Déconnexion réussie. Le token a été supprimé côté client.' };
+  }
+  
+}   

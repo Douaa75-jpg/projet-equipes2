@@ -1,10 +1,11 @@
-
-import { IsEmail, IsString } from 'class-validator';
+// create-auth.dto.ts
+import { IsEmail, IsNotEmpty } from 'class-validator';
 
 export class CreateAuthDto {
   @IsEmail()
   email: string;
 
-  @IsString()
+  @IsNotEmpty()
   motDePasse: string;
+
 }

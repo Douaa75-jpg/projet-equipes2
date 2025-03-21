@@ -72,4 +72,5 @@ export class UtilisateursController {
   async remove(@Request() req, @Param('id') id: string){
     return this.utilisateursService.remove(req.user, id);
   }
+  
 }

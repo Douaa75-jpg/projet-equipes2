@@ -7,6 +7,7 @@ import { ResponsableModule } from './responsable/responsable.module';
 import { PointageModule } from './pointage/pointage.module';
 import { DemandeModule } from './demande/demande.module';
 import { AuthModule } from './auth/auth.module';
+import { TacheModule } from './tache/tache.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AuthModule } from './auth/auth.module';
     PointageModule,
     DemandeModule,
     AuthModule,
+    TacheModule,
   ],
 })
 export class AppModule {}

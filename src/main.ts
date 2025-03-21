@@ -7,7 +7,11 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule , { logger: ['error', 'warn', 'debug', 'log'] });
   
-  app.enableCors();
+  app.enableCors({
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    allowedHeaders: 'Content-Type, Authorization',
+  });
    // Utilisation globale du guard pour toutes les routes
    app.useGlobalGuards();
 
