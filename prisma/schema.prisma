@@ -58,7 +58,7 @@ model Employe {
   pointages       Pointage[]
   demandes        Demande[]
   notifications   Notification[]
-  responsable     Responsable?   @relation("EmployeResponsable", fields: [responsableId], references: [id])
+  responsable     Responsable?   @relation("EmployeResponsable", fields: [responsableId], references: [id] , onDelete: Cascade)
   responsableId   String?
 
   soldeConges     Int            @default(0)  //  Solde de congés en jours

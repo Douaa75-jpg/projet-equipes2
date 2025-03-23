@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, InternalServerErrorException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { EmployeService } from './employe.service';
 import { CreateEmployeDto } from './dto/create-employe.dto';
@@ -6,7 +6,7 @@ import { UpdateEmployeDto } from './dto/update-employe.dto';
 import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('Employés')
-@UseGuards(AuthGuard('jwt'))
+
 @ApiBearerAuth() // Ajout de l'authentification via JWT
 @Controller('employes')
 export class EmployeController {
@@ -49,10 +49,16 @@ export class EmployeController {
   // ✅ Supprimer un employé
   @Delete(':id')
   @ApiOperation({ summary: 'Supprimer un employé' })
-  @ApiResponse({ status: 200, description: 'L\'employé a été supprimé avec succès.' })
+  @ApiResponse({ status: 200, description: 'Employé supprimé avec succès.' })
+  @ApiResponse({ status: 500, description: 'Erreur interne du serveur' })
   async remove(@Param('id') id: string) {
-    return this.employeService.remove(id);
+    try {
+      return await this.employeService.remove(id);
+    } catch (error) {
+      throw new InternalServerErrorException('Erreur lors de la suppression de l\'employé');
+    }
   }
+
 
   // ✅ Obtenir le solde de congés d'un employé
   @Get(':employeId/solde-conges')

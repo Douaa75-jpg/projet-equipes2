@@ -70,7 +70,7 @@ export class UtilisateursController {
   @ApiOperation({ summary: 'Supprimer un utilisateur' })
   @ApiResponse({ status: 200, description: 'Utilisateur supprimé avec succès' })
   async remove(@Request() req, @Param('id') id: string){
-    return this.utilisateursService.remove(req.user, id);
+    return this.utilisateursService.remove( id);
   }
   
 }

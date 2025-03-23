@@ -1,5 +1,6 @@
 // create-auth.dto.ts
-import { IsEmail, IsNotEmpty } from 'class-validator';
+import { IsEmail, IsNotEmpty  } from 'class-validator';
+import { Column } from 'typeorm';
 
 export class CreateAuthDto {
   @IsEmail()
@@ -7,5 +8,7 @@ export class CreateAuthDto {
 
   @IsNotEmpty()
   motDePasse: string;
-
+  
+  @Column()
+  role: string;
 }

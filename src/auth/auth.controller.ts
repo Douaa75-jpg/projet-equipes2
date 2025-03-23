@@ -34,7 +34,7 @@ export class AuthController {
     }
   
     this.logger.log(`Connexion réussie pour : ${loginDto.email}`);
-    return this.authService.login(user);
+    return this.authService.login(user as any); // L'utilisateur est déjà validé et prêt à être connecté
   }
   
   @Post('logout')

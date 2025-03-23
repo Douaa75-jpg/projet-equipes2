@@ -183,15 +183,44 @@ export class EmployeService {
   }
 
   // ✅ Supprimer un employé
-  @ApiOperation({ summary: 'Supprimer un employé' })
   @ApiResponse({ status: 200, description: 'Employé supprimé avec succès.' })
   async remove(id: string) {
     try {
-      return this.prisma.employe.delete({ where: { id } });
+      // Vérifier si l'employé existe avant de procéder à la suppression
+      const employe = await this.prisma.employe.findUnique({
+        where: { id },
+      });
+  
+      if (!employe) {
+        throw new NotFoundException("Employé non trouvé");
+      }
+  
+      // Séparer l'employé du responsable
+      await this.prisma.employe.update({
+        where: { id },
+        data: { responsableId: null },
+      });
+  
+      // Supprimer les enregistrements associés
+      await this.prisma.pointage.deleteMany({ where: { employeId: id } });
+      await this.prisma.demande.deleteMany({ where: { employeId: id } });
+      await this.prisma.notification.deleteMany({ where: { employeId: id } });
+  
+      // Supprimer l'employé
+      await this.prisma.employe.delete({
+        where: { id },
+      });
+  
+      return { message: "Employé supprimé avec succès" };
     } catch (error) {
+      console.error('Erreur lors de la suppression de l\'employé:', error);
       throw new InternalServerErrorException('Erreur lors de la suppression de l\'employé');
     }
   }
+  
+
+  
+
 
   // ✅ Obtenir le solde des congés
   @ApiOperation({ summary: 'Obtenir le solde des congés d\'un employé' })

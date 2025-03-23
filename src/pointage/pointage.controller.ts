@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete , Query } from '@nestjs/common';
 import { PointageService } from './pointage.service';
 import { CreatePointageDto } from './dto/create-pointage.dto';
 import { UpdatePointageDto } from './dto/update-pointage.dto';
@@ -47,14 +47,14 @@ export class PointageController {
   }
 
   @Get('calcul-heures')
-  @ApiOperation({ summary: 'Calculer les heures de travail et les heures supplémentaires' })
-  async calculerHeuresTravail(
-    @Param('employeId') employeId: string,
-    @Param('dateDebut') dateDebut: string,
-    @Param('dateFin') dateFin: string
-  ) {
-    return this.pointageService.calculerHeuresTravail(employeId, dateDebut, dateFin);
-  }
+@ApiOperation({ summary: 'Calculer les heures de travail et les heures supplémentaires' })
+async calculerHeuresTravail(
+  @Query('employeId') employeId: string,
+  @Query('dateDebut') dateDebut: string,
+  @Query('dateFin') dateFin: string
+) {
+  return this.pointageService.calculerHeuresTravail(employeId, dateDebut, dateFin);
+}
 
   // ✅ Nouvelle méthode pour enregistrer la pause déjeuner
   @Patch('pause-dejeuner/:id')

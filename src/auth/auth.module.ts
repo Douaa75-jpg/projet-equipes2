@@ -7,9 +7,11 @@ import { JwtStrategy } from './jwt.strategy';
 import { UtilisateursService } from 'src/utilisateur/utilisateur.service';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ResponsableModule } from '../responsable/responsable.module';
 
 @Module({
   imports: [
+    ResponsableModule,
     ConfigModule.forRoot(), //  تحميل المتغيرات من `.env`
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({

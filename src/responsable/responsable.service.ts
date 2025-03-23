@@ -44,6 +44,25 @@ export class ResponsableService {
     });
   }
 
+
+   // Ajouter la méthode pour trouver un responsable par ID utilisateur
+   async findByUtilisateurId(id: string) {
+    const responsable = await this.prisma.responsable.findFirst({
+      where: { id },
+      select: {
+        id: true,
+        typeResponsable: true,
+      },
+    });
+
+    if (!responsable) {
+      throw new NotFoundException(`Responsable associé à l'utilisateur avec l'ID ${id} introuvable`);
+    }
+
+    return responsable;
+  }
+
+
   // Trouver tous les responsables
   async findAll() {
     return this.prisma.responsable.findMany({

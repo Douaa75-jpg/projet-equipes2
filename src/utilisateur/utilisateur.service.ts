@@ -123,22 +123,29 @@ export class UtilisateursService {
     });
   }
 
-  // Supprimer un utilisateur
-  async remove(requestingUser: any, id: string) {
-    const utilisateur = await this.prisma.utilisateur.findUnique({ where: { id } });
-
-    if (!utilisateur) {
-      throw new NotFoundException('Utilisateur non trouvé');
+  async remove(id: string) {
+    // Vérifier si l'ID est défini
+    if (!id) {
+      throw new Error('L\'ID de l\'utilisateur est manquant');
     }
-
-    // منع الموظف من حذف الإداريين أو المسؤولين
-    if (utilisateur.role === 'ADMINISTRATEUR' || utilisateur.role === 'RESPONSABLE') {
-      if (requestingUser.role === 'EMPLOYE') {
-        throw new ForbiddenException('Vous n\'avez pas le droit de supprimer un administrateur ou un responsable.');
-      }
+  
+    // Rechercher l'utilisateur par ID
+    const user = await this.prisma.utilisateur.findUnique({
+      where: { id },
+    });
+  
+    if (!user) {
+      throw new Error('Utilisateur non trouvé');
     }
-
-    return this.prisma.utilisateur.delete({ where: { id } });
+  
+    // Supprimer l'utilisateur
+    await this.prisma.utilisateur.delete({
+      where: { id },
+    });
+  
+    return { message: 'Utilisateur supprimé avec succès' };
   }
+  
+  
 }
 
