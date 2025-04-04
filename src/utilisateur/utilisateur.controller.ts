@@ -1,12 +1,12 @@
-import { Controller, Get, Post, Body, Param,Request, Put, Delete,UseGuards ,Patch} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Request, Put, Delete, Patch } from '@nestjs/common';
 import { UtilisateursService } from './utilisateur.service';
 import { CreateUtilisateurDto } from './dto/create-utilisateur.dto';
 import { UpdateUtilisateurDto } from './dto/update-utilisateur.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
+
 @ApiTags('Utilisateurs')
 @Controller('utilisateurs')
-
 export class UtilisateursController {
   constructor(private readonly utilisateursService: UtilisateursService) {}
 
@@ -18,7 +18,7 @@ export class UtilisateursController {
     return this.utilisateursService.create(createUtilisateurDto);
   }
 
-
+  // Assigner un responsable (chef d'équipe) à un employé
   @Patch(':id/assigner-responsable')
   @ApiOperation({ summary: 'Assigner un responsable (chef d\'équipe) à un employé' })
   @ApiResponse({ status: 200, description: 'Responsable assigné avec succès' })
@@ -38,9 +38,7 @@ export class UtilisateursController {
     return this.utilisateursService.assignerResponsable(id, responsableIdDto.responsableId);
   }
 
-
-  // Obtenir tous les utilisateurs
-  @UseGuards(AuthGuard('jwt'))
+  // Récupérer tous les utilisateurs
   @Get()
   @ApiOperation({ summary: 'Obtenir tous les utilisateurs' })
   @ApiResponse({ status: 200, description: 'Liste des utilisateurs récupérée avec succès' })
@@ -49,7 +47,7 @@ export class UtilisateursController {
     return this.utilisateursService.findAll();
   }
 
-  // Obtenir un utilisateur par ID
+  // Récupérer un utilisateur par ID
   @Get(':id')
   @ApiOperation({ summary: 'Obtenir un utilisateur par ID' })
   @ApiResponse({ status: 200, description: 'Utilisateur récupéré avec succès' })
@@ -69,8 +67,23 @@ export class UtilisateursController {
   @Delete(':id')
   @ApiOperation({ summary: 'Supprimer un utilisateur' })
   @ApiResponse({ status: 200, description: 'Utilisateur supprimé avec succès' })
-  async remove(@Request() req, @Param('id') id: string){
-    return this.utilisateursService.remove( id);
+  async remove(@Param('id') id: string) {
+    return this.utilisateursService.remove(id);
   }
-  
+
+  // Récupérer le nombre total d'employés
+  @Get('count/employes')
+  @ApiOperation({ summary: 'Obtenir le nombre total d\'employés' })
+  @ApiResponse({ status: 200, description: 'Nombre total d\'employés récupéré avec succès' })
+  async countEmployes() {
+    return { totalEmployes: await this.utilisateursService.countEmployes() };
+  }
+
+  // Récupérer le nombre total de responsables
+  @Get('count/responsables')
+  @ApiOperation({ summary: 'Obtenir le nombre total de responsables(CHEF_EQUIPE)' })
+  @ApiResponse({ status: 200, description: 'Nombre total de responsables récupéré avec succès' })
+  async countResponsables() {
+    return { totalResponsables: await this.utilisateursService.countResponsables() };
+  }
 }

@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsUUID, IsDateString ,IsDate,IsEnum} from 'class-validator';
+import { IsNotEmpty, IsOptional, IsUUID,IsISO8601, IsDateString ,IsDate,IsEnum} from 'class-validator';
 import { Statut } from '@prisma/client';
 
 
@@ -7,17 +7,17 @@ export class CreatePointageDto {
   @IsNotEmpty()
   employeId: string;
 
-  @IsDateString()
+  @IsISO8601()
   @IsNotEmpty()
   date: string;
 
-  @IsDateString()
+  @IsISO8601()
   @IsNotEmpty()
   heureArrivee: string;
 
-  @IsDate()
   @IsOptional()
-  heureDepart?: Date;
+  @IsDateString()
+  heureDepart?: string;
 
   @IsEnum(Statut)
   @IsOptional()

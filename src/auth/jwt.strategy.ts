@@ -7,6 +7,7 @@ interface JwtPayload {
     id: string;
     email: string;
     role: string;
+    nom: string;
   }
 
 @Injectable()
@@ -29,12 +30,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Token invalide: Pas de payload trouvé');
     }
 
-    if (!payload.id || !payload.email || !payload.role) {
+    if (!payload.id || !payload.email || !payload.role || !payload.nom) {
       this.logger.error('Token validation failed: Missing required fields in payload');
       throw new UnauthorizedException('Token invalide: Champs manquants dans le payload');
     }
 
     this.logger.debug('Token validated successfully');
-    return { userId: payload.id, email: payload.email, role: payload.role };
+    return { userId: payload.id, email: payload.email, role: payload.role , nom: payload.nom};
   }
 }

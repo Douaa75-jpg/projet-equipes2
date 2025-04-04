@@ -1,24 +1,32 @@
-import { IsEnum, IsDateString, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsDateString, IsOptional, IsString, MinDate } from 'class-validator';
+import { Type } from 'class-transformer';
 import { StatutDemande } from '@prisma/client';
+
+export enum TypeDemande {
+  CONGE = 'congé',
+  ABSENCE = 'absence',
+  AUTORISATION_SORTIE = 'autorization_sortie'
+  
+}
 
 export class CreateDemandeDto {
   @IsString()
-  employeId: string;  
+  employeId: string;
 
-  @IsString()
-  type: string;  
+  @IsEnum(TypeDemande)
+  type: TypeDemande;
 
-  @IsDateString() // ✅ Accepte uniquement "YYYY-MM-DD"
+  @IsDateString({}, { message: "La date de début doit être une date valide au format ISO 8601." })
   dateDebut: string;
 
   @IsOptional()
-  @IsDateString() // ✅ Accepte uniquement "YYYY-MM-DD"
+  @IsDateString()
   dateFin?: string;
 
   @IsEnum(StatutDemande)
   statut: StatutDemande = StatutDemande.SOUMISE;
 
-  @IsOptional()  
+  @IsOptional()
   @IsString()
   raison?: string;
 }

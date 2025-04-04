@@ -106,7 +106,8 @@ model Pointage {
   heureDepart      DateTime?
   heureDepartDej   DateTime? // Début de la pause déjeuner
   heureRetourDej   DateTime? // Fin de la pause déjeuner
-  statut           Statut    @default(ABSENT)// Statut du pointage (PRESENT, ABSENT, RETARD, etc.)
+  statut           Statut
+  deletedAt        DateTime?  // Champ pour la suppression logique    
 }
 
 // Demande (classe mère pour Congé et Autorisation de Sortie)
@@ -131,3 +132,5 @@ model Notification {
   responsableId String?
   dateEnvoi     DateTime     @default(now())
 }
+
+

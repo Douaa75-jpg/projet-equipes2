@@ -1,7 +1,9 @@
-import { Injectable ,ForbiddenException,NotFoundException} from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUtilisateurDto } from './dto/create-utilisateur.dto';
 import * as bcrypt from 'bcrypt';
+import { ApiOperation, ApiResponse } from '@nestjs/swagger';
+
 
 @Injectable()
 export class UtilisateursService {
@@ -16,14 +18,14 @@ export class UtilisateursService {
 
   // Créer un utilisateur avec gestion des rôles et responsableId pour les employés
   async create(createUtilisateurDto: CreateUtilisateurDto) {
-
     const existingUser = await this.prisma.utilisateur.findUnique({
       where: { email: createUtilisateurDto.email },
     });
-  
+
     if (existingUser) {
       throw new Error('Cet email est déjà utilisé.');
     }
+
     // Hacher le mot de passe avant de l'enregistrer
     const hashedPassword = await bcrypt.hash(createUtilisateurDto.motDePasse, 10);
 
@@ -68,9 +70,8 @@ export class UtilisateursService {
     return utilisateur;
   }
 
-
-   // Méthode pour assigner un responsable à un employé
-   async assignerResponsable(id: string, responsableId: string) {
+  // Méthode pour assigner un responsable à un employé
+  async assignerResponsable(id: string, responsableId: string) {
     const utilisateur = await this.prisma.utilisateur.findUnique({
       where: { id },
     });
@@ -93,27 +94,19 @@ export class UtilisateursService {
     return employe;
   }
 
-  // Récupérer tous les utilisateurs
-  async findAll() {
-    const users = await this.prisma.utilisateur.findMany();
-    return users.map(({ motDePasse, ...userSansMotDePasse }) => userSansMotDePasse);
-  }
-  
-
   // Récupérer un utilisateur par ID
   async findOne(id: string) {
     const user = await this.prisma.utilisateur.findUnique({
       where: { id },
     });
-  
+
     if (!user) {
       throw new NotFoundException('Utilisateur non trouvé');
     }
-  
+
     const { motDePasse, ...userSansMotDePasse } = user;
     return userSansMotDePasse;
   }
-  
 
   // Mettre à jour un utilisateur
   async update(id: string, updateUtilisateurDto) {
@@ -123,29 +116,50 @@ export class UtilisateursService {
     });
   }
 
+  // Supprimer un utilisateur
   async remove(id: string) {
     // Vérifier si l'ID est défini
     if (!id) {
       throw new Error('L\'ID de l\'utilisateur est manquant');
     }
-  
+
     // Rechercher l'utilisateur par ID
     const user = await this.prisma.utilisateur.findUnique({
       where: { id },
     });
-  
+
     if (!user) {
       throw new Error('Utilisateur non trouvé');
     }
-  
+
     // Supprimer l'utilisateur
     await this.prisma.utilisateur.delete({
       where: { id },
     });
-  
+
     return { message: 'Utilisateur supprimé avec succès' };
   }
-  
-  
+
+  // Compter le nombre total d'employés
+  async countEmployes() {
+    return this.prisma.utilisateur.count({
+      where: { role: 'EMPLOYE' },
+    });
+  }
+
+  // Compter le nombre total de responsables
+  async countResponsables() {
+    return this.prisma.responsable.count({
+      where: {
+        typeResponsable: 'CHEF_EQUIPE', // Filtrer par typeResponsable CHEF_EQUIPE
+      },
+    });
+  }
+
+ // Trouver tous les utilisateurs
+ async findAll() {
+  const users = await this.prisma.utilisateur.findMany();
+  return users.map(({ motDePasse, ...userSansMotDePasse }) => userSansMotDePasse);
 }
 
+}

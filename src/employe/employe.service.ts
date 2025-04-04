@@ -219,9 +219,6 @@ export class EmployeService {
   }
   
 
-  
-
-
   // ✅ Obtenir le solde des congés
   @ApiOperation({ summary: 'Obtenir le solde des congés d\'un employé' })
   @ApiResponse({ status: 200, description: 'Solde des congés récupéré avec succès.' })
@@ -333,21 +330,32 @@ export class EmployeService {
 
   // ✅ Récupérer les employés d'un responsable
   @ApiOperation({ summary: 'Récupérer les employés d\'un responsable' })
-  @ApiResponse({ status: 200, description: 'Liste des employés récupérée avec succès.' })
-  async findByResponsable(responsableId: string) {
-    return this.prisma.employe.findMany({
-      where: {
-        responsableId: responsableId,
+@ApiResponse({ status: 200, description: 'Liste des employés récupérée avec succès.' })
+async findByResponsable(responsableId: string) {
+  return this.prisma.responsable.findUnique({
+    where: { id: responsableId },
+    include: {
+      utilisateur: {
+        select: {
+          nom: true,
+          prenom: true,
+          email: true,
+        },
       },
-      include: {
-        utilisateur: {
-          select: {
-            nom: true,
-            prenom: true,
-            email: true,
+      employes: {
+        include: {
+          utilisateur: {
+            select: {
+              nom: true,
+              prenom: true,
+              email: true,
+            },
           },
         },
       },
-    });
-  }
+    },
+  });
+}
+
+
 }

@@ -65,6 +65,7 @@ export class AuthService {
     return {
       ...result,
       typeResponsable: userWithResponsable.responsable?.typeResponsable || null, // Défaut à null si typeResponsable est absent
+      nom: userWithResponsable.nom, 
     };
   }
 
@@ -76,6 +77,7 @@ export class AuthService {
       id: user.id,
       email: user.email,
       role: user.role,
+      nom: user.nom,
       typeResponsable: user.role === 'RESPONSABLE' ? user.responsable?.typeResponsable : null, // Renvoie null si responsable ou typeResponsable est absent
     };
 
@@ -90,6 +92,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         role: user.role,
+        nom: user.nom,
         typeResponsable: user.responsable?.typeResponsable || null, // Renvoi null si typeResponsable est absent
       },
     };

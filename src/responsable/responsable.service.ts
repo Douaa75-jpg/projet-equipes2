@@ -63,15 +63,38 @@ export class ResponsableService {
   }
 
 
-  // Trouver tous les responsables
-  async findAll() {
-    return this.prisma.responsable.findMany({
-      select: {
-        id: true,
-        typeResponsable: true,
+// Trouver tous les responsables avec leurs informations d'utilisateur et les employés associés
+async findAll() {
+  return this.prisma.responsable.findMany({
+    where: {
+      typeResponsable: 'CHEF_EQUIPE', // Filtrer uniquement les responsables de type CHEF_EQUIPE
+    },
+    select: {
+      id: true,
+      typeResponsable: true,
+      utilisateur: {
+        select: {
+          nom: true,
+          prenom: true,
+          email: true,
+        },
       },
-    });
-  }
+      employes: {
+        select: {
+          utilisateur: {
+            select: {
+              nom: true,
+              prenom: true,
+              email: true,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+
 
   // Trouver un responsable par ID
   async findOne(id: string) {
@@ -148,4 +171,6 @@ export class ResponsableService {
       where: { id },
     });
   }
+
+  
 }

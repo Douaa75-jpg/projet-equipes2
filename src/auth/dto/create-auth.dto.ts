@@ -11,4 +11,5 @@ export class CreateAuthDto {
   
   @Column()
   role: string;
+
 }

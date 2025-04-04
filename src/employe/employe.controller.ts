@@ -1,16 +1,19 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, InternalServerErrorException ,NotFoundException} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { EmployeService } from './employe.service';
 import { CreateEmployeDto } from './dto/create-employe.dto';
 import { UpdateEmployeDto } from './dto/update-employe.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('Employés')
 
 @ApiBearerAuth() // Ajout de l'authentification via JWT
 @Controller('employes')
 export class EmployeController {
-  constructor(private readonly employeService: EmployeService) {}
+  constructor(private readonly employeService: EmployeService, 
+    private readonly prisma: PrismaService,
+  ) {}
 
   // Créer un nouvel employé
   @Post()
@@ -103,6 +106,35 @@ export class EmployeController {
   @ApiOperation({ summary: 'Récupérer les employés d\'un responsable' })
   @ApiResponse({ status: 200, description: 'Liste des employés du responsable récupérée avec succès.' })
   async findEmployesByResponsable(@Param('responsableId') responsableId: string) {
-    return this.employeService.findByResponsable(responsableId);
+    const responsable = await this.prisma.responsable.findUnique({
+      where: { id: responsableId },
+      include: {
+        utilisateur: {
+          select: {
+            nom: true,
+            prenom: true,
+            email: true,
+          },
+        },
+        employes: {
+          include: {
+            utilisateur: {
+              select: {
+                nom: true,
+                prenom: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  
+    if (!responsable) {
+      throw new NotFoundException('Responsable non trouvé');
+    }
+  
+    return responsable;
   }
+
 }
