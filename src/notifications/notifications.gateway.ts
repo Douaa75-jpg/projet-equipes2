@@ -14,12 +14,14 @@ export class NotificationGateway implements OnGatewayConnection, OnGatewayDiscon
 
   // Lorsqu'un utilisateur se connecte
   handleConnection(client: Socket) {
-    console.log(`Utilisateur connecté: ${client.id}`);
-    // Vous pouvez associer l'ID de l'utilisateur à sa connexion
-    const userId = client.handshake.query.userId as string; // Assurez-vous que userId est une string
-    if (userId) {
-      this.users[userId] = client;
+    const userId = client.handshake.query.userId as string;
+    if (!userId) {
+      console.warn('❌ userId manquant dans la connexion WebSocket');
+      client.disconnect();
+      return;
     }
+    this.users[userId] = client;
+    console.log(`✅ RH connecté via WebSocket : ${userId}`);
   }
 
   // Lorsqu'un utilisateur se déconnecte
@@ -29,6 +31,7 @@ export class NotificationGateway implements OnGatewayConnection, OnGatewayDiscon
     for (const userId in this.users) {
       if (this.users[userId] === client) {
         delete this.users[userId];
+        console.log(`🗑️ Utilisateur supprimé de la liste : ${userId}`);
         break;
       }
     }
@@ -38,12 +41,15 @@ export class NotificationGateway implements OnGatewayConnection, OnGatewayDiscon
   sendNotification(userId: string, message: string) {
     const client = this.users[userId];
     if (client) {
-      client.emit('notification', message); // 'notification' est l'événement qui sera capté par le client
+      client.emit('notification', message);
+    } else {
+      console.warn(` RH (${userId}) non connecté via WebSocket. Notification non envoyée.`);
     }
   }
 
   // Envoi d'une notification à tous les utilisateurs connectés
   sendNotificationToAll(message: string) {
     this.server.emit('notification', message);
+   console.log(` Notification envoyée à tous : ${message}`);
   }
 }

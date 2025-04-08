@@ -18,8 +18,16 @@ export class DemandeService {
     const rh = await this.prisma.responsable.findFirst({
       where: { typeResponsable: 'RH' },
     });
-    if (rh) {
-      this.notifyUser(rh.id, `📌 Nouvelle demande de ${type} soumise par ${employeId}`);
+    const employe = await this.prisma.employe.findUnique({
+      where: { id: employeId },
+      include: { utilisateur: true },
+    });
+
+    if (rh && employe) {
+      this.notifyUser(
+        rh.id,
+        `📌 Nouvelle demande de ${type} soumise par ${employe.utilisateur.nom}`
+      );
     }
   }
 
@@ -86,7 +94,9 @@ export class DemandeService {
 
   // Approuver une demande
   async approve(id: string, userId: string) {
-    const rh = await this.prisma.responsable.findFirst({ where: { typeResponsable: 'RH' } });
+    const rh = await this.prisma.responsable.findFirst({
+       where: { typeResponsable: 'RH' }
+      });
     if (!rh || rh.id !== userId) {
       throw new BadRequestException("Vous n'êtes pas autorisé à approuver cette demande.");
     }
@@ -123,21 +133,35 @@ export class DemandeService {
       skip: (page - 1) * limit,
       take: limit,
       orderBy: { dateDebut: 'desc' },
-      include: { employe: true },
+      include: {
+        employe: {
+          include: {
+            utilisateur: true
+          }
+        }
+      },
     });
     const total = await this.prisma.demande.count();
     return { total, page, limit, demandes };
   }
+  
 
   // Récupérer une demande par ID
   async findOne(id: string) {
     const demande = await this.prisma.demande.findUnique({
       where: { id },
-      include: { employe: true },
+      include: {
+        employe: {
+          include: {
+            utilisateur: true
+          }
+        }
+      },
     });
     if (!demande) throw new NotFoundException("La demande n'existe pas.");
     return demande;
   }
+    
 
   // Supprimer une demande
   async remove(id: string, userId: string) {

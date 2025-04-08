@@ -1,34 +1,43 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Body, Param, Get, Patch, Delete,} from '@nestjs/common';
 import { NotificationService } from './notifications.service';
-import { CreateNotificationDto } from './dto/create-notification.dto';
-import { UpdateNotificationDto } from './dto/update-notification.dto';
 
 @Controller('notifications')
-export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationService) {}
+export class NotificationController {
+  constructor(private notificationService: NotificationService) {}
 
-  @Post()
-  create(@Body() createNotificationDto: CreateNotificationDto) {
-    return this.notificationsService.create(createNotificationDto);
+  // ➕ Envoyer à un employé
+  @Post('employe/:id')
+  createForEmploye(@Param('id') employeId: string, @Body('message') message: string) {
+    return this.notificationService.createForEmploye(employeId, message);
   }
 
-  @Get()
-  findAll() {
-    return this.notificationsService.findAll();
+  // ➕ Envoyer à un responsable
+  @Post('responsable/:id')
+  createForResponsable(@Param('id') responsableId: string, @Body('message') message: string) {
+    return this.notificationService.createForResponsable(responsableId, message);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.notificationsService.findOne(id);
+  // ✅ Marquer comme lue
+  @Patch('read/:id')
+  markAsRead(@Param('id') notificationId: string) {
+    return this.notificationService.markAsRead(notificationId);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateNotificationDto: UpdateNotificationDto) {
-    return this.notificationsService.update(id, updateNotificationDto);
+  // 📥 Récupérer pour un employé
+  @Get('employe/:id')
+  getForEmploye(@Param('id') employeId: string) {
+    return this.notificationService.getForEmploye(employeId);
   }
 
+  // 📥 Récupérer pour un responsable
+  @Get('responsable/:id')
+  getForResponsable(@Param('id') responsableId: string) {
+    return this.notificationService.getForResponsable(responsableId);
+  }
+
+  // ❌ Supprimer une notification
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.notificationsService.remove(id);
+  delete(@Param('id') notificationId: string) {
+    return this.notificationService.delete(notificationId);
   }
 }

@@ -7,21 +7,120 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enum pour les rôles des utilisateurs
+model Utilisateur {
+  id              String          @id @default(uuid())
+  nom             String
+  prenom          String
+  email           String          @unique
+  role            Role
+  motDePasse      String
+  matricule       String?         @db.VarChar(255)
+  datedenaissance DateTime?       @db.Date
+  registrationToken String?       @db.VarChar(255) // Nouveau champ
+  tokenExpiresAt    DateTime?                     // Date d’expiration du lien
+  isActive          Boolean       @default(false) // Pour bloquer l’accès si pas encore activé
+  
+  administrateur  Administrateur?
+  employe         Employe?
+  responsable     Responsable?
+}
+
+model Employe {
+  id            String         @id @default(uuid())
+  responsableId String?
+  heuresSupp    Float          @default(0)
+  heuresTravail Float          @default(0)
+  soldeConges   Int            @default(0)
+  demandes      Demande[]
+  utilisateur   Utilisateur    @relation(fields: [id], references: [id])
+  responsable   Responsable?   @relation("EmployeResponsable", fields: [responsableId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+  pointages     Pointage[]
+  taches        Tache[]
+}
+
+model Tache {
+  id          String      @id @default(uuid())
+  employeId   String
+  titre       String
+  description String?
+  date        DateTime    @default(now())
+  statut      StatutTache @default(A_FAIRE)
+  dateLimite  DateTime?
+  employe     Employe     @relation(fields: [employeId], references: [id])
+}
+
+model Responsable {
+  id               String           @id @default(uuid())
+  typeResponsable  TypeResponsable?
+  administrateurId String?
+  employes         Employe[]        @relation("EmployeResponsable")
+  notifications    Notification[]
+  administrateur   Administrateur?  @relation(fields: [administrateurId], references: [id])
+  utilisateur      Utilisateur      @relation(fields: [id], references: [id])
+}
+
+model Administrateur {
+  id           String        @id @default(uuid())
+  utilisateur  Utilisateur   @relation(fields: [id], references: [id])
+  responsables Responsable[]
+}
+
+model Pointage {
+  id             String    @id @default(uuid())
+  employeId      String
+  date           DateTime
+  heureArrivee   DateTime
+  heureDepart    DateTime?
+  statut         Statut
+  heureDepartDej DateTime?
+  heureRetourDej DateTime?
+  deletedAt      DateTime?
+  employe        Employe   @relation(fields: [employeId], references: [id])
+}
+
+model Demande {
+  id        String        @id @default(uuid())
+  employeId String
+  type      String
+  dateDebut DateTime
+  dateFin   DateTime?
+  statut    StatutDemande @default(SOUMISE)
+  raison    String?
+  employe   Employe       @relation(fields: [employeId], references: [id])
+}
+
+model Notification {
+  id            String       @id @default(uuid())
+  message       String
+  employeId     String?
+  responsableId String?
+  dateEnvoi     DateTime     @default(now())
+  lu            Boolean      @default(false)
+  employe       Employe?     @relation(fields: [employeId], references: [id])
+  responsable   Responsable? @relation(fields: [responsableId], references: [id])
+}
+
+model notification {
+  id            String   @id(map: "PK_705b6c7cdf9b2c2ff7ac7872cb7") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employeId     String   @db.VarChar
+  responsableId String?  @db.VarChar
+  message       String   @db.VarChar
+  createdAt     DateTime @default(now()) @db.Timestamp(6)
+}
+
 enum Role {
   EMPLOYE
   RESPONSABLE
   ADMINISTRATEUR
 }
 
-// Enum pour le statut des demandes
 enum StatutDemande {
   SOUMISE
   APPROUVEE
   REJETEE
 }
 
-// Enum pour le type de responsable
 enum TypeResponsable {
   RH
   CHEF_EQUIPE
@@ -38,99 +137,3 @@ enum StatutTache {
   EN_COURS
   TERMINEE
 }
-
-// Classe mère Utilisateur
-model Utilisateur {
-  id             String          @id @default(uuid())
-  nom            String
-  prenom         String
-  email          String          @unique
-  motDePasse     String
-  role           Role
-  employe        Employe?
-  responsable    Responsable?
-  administrateur Administrateur?
-}
-
-model Employe {
-  id               String         @id @default(uuid())
-  utilisateur      Utilisateur    @relation(fields: [id], references: [id])
-  pointages       Pointage[]
-  demandes        Demande[]
-  notifications   Notification[]
-  responsable     Responsable?   @relation("EmployeResponsable", fields: [responsableId], references: [id] , onDelete: Cascade)
-  responsableId   String?
-
-  soldeConges     Int            @default(0)  //  Solde de congés en jours
-  heuresTravail   Float          @default(0)  //  Total des heures de travail
-  heuresSupp      Float          @default(0)  //  Total des heures supplémentaires
-  taches           Tache[]
-}
-
-model Tache {
-  id          String   @id @default(uuid())
-  employe     Employe  @relation(fields: [employeId], references: [id])
-  employeId   String
-  titre       String
-  description String?
-  date        DateTime @default(now()) // Date d'ajout de la tâche
-  statut      StatutTache @default(A_FAIRE) // "A_FAIRE", "EN_COURS", "TERMINEE"
-  dateLimite  DateTime?
-}
-
-// Responsable hérite de Utilisateur
-model Responsable {
-  id               String           @id @default(uuid())
-  utilisateur      Utilisateur      @relation(fields: [id], references: [id])
-  typeResponsable  TypeResponsable? //Enum pour le type de responsable RH /CHEF_EQUIPE
-  employes         Employe[]        @relation("EmployeResponsable") // Relation inverse nommée
-  notifications    Notification[]
-  administrateur   Administrateur?  @relation(fields: [administrateurId], references: [id])
-  administrateurId String?
-}
-
-// Administrateur hérite de Utilisateur
-model Administrateur {
-  id           String        @id @default(uuid())
-  utilisateur  Utilisateur   @relation(fields: [id], references: [id])
-  responsables Responsable[] 
-}
-
-// Pointage lié aux employés
-model Pointage {
-  id               String    @id @default(uuid())
-  employe          Employe   @relation(fields: [employeId], references: [id])
-  employeId        String
-  date             DateTime
-  heureArrivee     DateTime
-  heureDepart      DateTime?
-  heureDepartDej   DateTime? // Début de la pause déjeuner
-  heureRetourDej   DateTime? // Fin de la pause déjeuner
-  statut           Statut
-  deletedAt        DateTime?  // Champ pour la suppression logique    
-}
-
-// Demande (classe mère pour Congé et Autorisation de Sortie)
-model Demande {
-  id        String        @id @default(uuid())
-  employe   Employe       @relation(fields: [employeId], references: [id])
-  employeId String
-  type      String // "CONGE" ou "AUTORISATION_SORTIE"
-  dateDebut DateTime
-  dateFin   DateTime?
-  statut    StatutDemande @default(SOUMISE)
-  raison    String?
-}
-
-// Notification liée aux employés et responsables
-model Notification {
-  id            String       @id @default(uuid())
-  message       String
-  employe       Employe?     @relation(fields: [employeId], references: [id])
-  employeId     String?
-  responsable   Responsable? @relation(fields: [responsableId], references: [id])
-  responsableId String?
-  dateEnvoi     DateTime     @default(now())
-}
-
-

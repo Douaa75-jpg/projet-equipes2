@@ -19,6 +19,15 @@ export class ResponsableService {
       throw new BadRequestException('L\'email est déjà utilisé.');
     }
 
+    // Vérifier si la date est dans le bon format et la convertir si nécessaire
+    if (createResponsableDto.dateDeNaissance) {
+      const dateDeNaissance = createResponsableDto.dateDeNaissance;
+      if (isNaN(new Date(dateDeNaissance).getTime())) {
+        throw new BadRequestException('La date de naissance doit être une date ISO valide.');
+      }
+    }
+
+
     // Générer un sel et hacher le mot de passe
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(createResponsableDto.motDePasse, salt);
@@ -34,6 +43,8 @@ export class ResponsableService {
             email: createResponsableDto.email,
             role: 'RESPONSABLE', // Définir le rôle
             motDePasse: hashedPassword, // Mot de passe sécurisé
+            matricule: createResponsableDto.matricule, // Ajout de matricule
+            datedenaissance: createResponsableDto.dateDeNaissance,
           },
         },
       },
@@ -77,6 +88,8 @@ async findAll() {
           nom: true,
           prenom: true,
           email: true,
+          matricule: true, // Ajout du matricule
+          datedenaissance: true,
         },
       },
       employes: {
@@ -86,6 +99,8 @@ async findAll() {
               nom: true,
               prenom: true,
               email: true,
+              matricule: true, // Ajout du matricule
+              datedenaissance: true,
             },
           },
         },

@@ -1,37 +1,59 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateNotificationDto } from './dto/create-notification.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class NotificationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {}
 
-  async create(createNotificationDto: CreateNotificationDto) {
+  async createForEmploye(employeId: string, message: string) {
     return this.prisma.notification.create({
-      data: createNotificationDto,
+      data: {
+        message,
+        employeId,
+      },
     });
   }
 
-  async findAll() {
-    return this.prisma.notification.findMany();
-  }
-
-  async findOne(id: string) {
-    return this.prisma.notification.findUnique({
-      where: { id },
+  async createForResponsable(responsableId: string, message: string) {
+    return this.prisma.notification.create({
+      data: {
+        message,
+        responsableId,
+      },
     });
   }
 
-  async update(id: string, updateNotificationDto: Partial<CreateNotificationDto>) {
+  async markAsRead(notificationId: string) {
+    const notification = await this.prisma.notification.findUnique({
+      where: { id: notificationId },
+    });
+
+    if (!notification) throw new NotFoundException('Notification introuvable');
+
     return this.prisma.notification.update({
-      where: { id },
-      data: updateNotificationDto,
+      where: { id: notificationId },
+      data: { lu: true },
     });
   }
 
-  async remove(id: string) {
+  async getForEmploye(employeId: string) {
+    return this.prisma.notification.findMany({
+      where: { employeId },
+      orderBy: { dateEnvoi: 'desc' },
+    });
+  }
+
+  async getForResponsable(responsableId: string) {
+    return this.prisma.notification.findMany({
+      where: { responsableId },
+      orderBy: { dateEnvoi: 'desc' },
+    });
+  }
+
+  async delete(notificationId: string) {
     return this.prisma.notification.delete({
-      where: { id },
+      where: { id: notificationId },
     });
   }
 }

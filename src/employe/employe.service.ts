@@ -33,6 +33,8 @@ export class EmployeService {
         email: createEmployeDto.email,
         motDePasse: hashedPassword,
         role: 'EMPLOYE',
+        datedenaissance: createEmployeDto.dateDeNaissance ? new Date(createEmployeDto.dateDeNaissance) : null, 
+        matricule: createEmployeDto.matricule || null,
       },
     });
 
@@ -50,6 +52,8 @@ export class EmployeService {
             nom: true,
             prenom: true,
             email: true,
+            matricule: true, // Ajout du matricule
+            datedenaissance: true,
           },
         },
       },
@@ -71,6 +75,8 @@ export class EmployeService {
             nom: true,
             prenom: true,
             email: true,
+            matricule: true, // Ajout du matricule
+            datedenaissance: true,
           },
         },
         responsable: {
@@ -80,6 +86,7 @@ export class EmployeService {
               select: {
                 nom: true,
                 prenom: true,
+                matricule: true,
               },
             },
           },
@@ -103,6 +110,8 @@ export class EmployeService {
             nom: true,
             prenom: true,
             email: true,
+            matricule: true, // Ajout du matricule
+            datedenaissance: true,
           },
         },
         responsable: {
@@ -112,6 +121,7 @@ export class EmployeService {
               select: {
                 nom: true,
                 prenom: true,
+                matricule: true,
               },
             },
           },
@@ -149,6 +159,8 @@ export class EmployeService {
             prenom: updateEmployeDto.prenom,
             email: updateEmployeDto.email,
             motDePasse: updateEmployeDto.motDePasse,
+            datedenaissance: updateEmployeDto.dateDeNaissance ? new Date(updateEmployeDto.dateDeNaissance) : null, 
+            matricule: updateEmployeDto.matricule || null,
           },
         },
         responsable: updateEmployeDto.responsableId
@@ -165,6 +177,8 @@ export class EmployeService {
             nom: true,
             prenom: true,
             email: true,
+            matricule: true, // Ajout du matricule
+            datedenaissance: true,
           },
         },
         responsable: {
@@ -340,6 +354,8 @@ async findByResponsable(responsableId: string) {
           nom: true,
           prenom: true,
           email: true,
+          matricule: true, // Ajout du matricule
+          datedenaissance: true,
         },
       },
       employes: {
@@ -349,6 +365,8 @@ async findByResponsable(responsableId: string) {
               nom: true,
               prenom: true,
               email: true,
+              matricule: true, // Ajout du matricule
+              datedenaissance: true,
             },
           },
         },

@@ -129,6 +129,10 @@ async enregistrerAbsences() {
       if (!pointage) {
         throw new NotFoundException("Pointage non trouvé pour cet employé à cette date.");
       }
+
+      if (pointage.statut !== "PRESENT" && pointage.statut !== "RETARD") {
+        throw new BadRequestException("L'employé doit être présent ou en retard pour enregistrer l'heure de départ.");
+      }
   
       // Mise à jour de l'heure de départ
       await this.prisma.pointage.update({
