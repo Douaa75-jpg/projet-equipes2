@@ -19,7 +19,7 @@ model Utilisateur {
   registrationToken String?       @db.VarChar(255) // Nouveau champ
   tokenExpiresAt    DateTime?                     // Date d’expiration du lien
   isActive          Boolean       @default(false) // Pour bloquer l’accès si pas encore activé
-  
+
   administrateur  Administrateur?
   employe         Employe?
   responsable     Responsable?
@@ -99,14 +99,6 @@ model Notification {
   lu            Boolean      @default(false)
   employe       Employe?     @relation(fields: [employeId], references: [id])
   responsable   Responsable? @relation(fields: [responsableId], references: [id])
-}
-
-model notification {
-  id            String   @id(map: "PK_705b6c7cdf9b2c2ff7ac7872cb7") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  employeId     String   @db.VarChar
-  responsableId String?  @db.VarChar
-  message       String   @db.VarChar
-  createdAt     DateTime @default(now()) @db.Timestamp(6)
 }
 
 enum Role {
