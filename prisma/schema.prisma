@@ -8,21 +8,21 @@ datasource db {
 }
 
 model Utilisateur {
-  id              String          @id @default(uuid())
-  nom             String
-  prenom          String
-  email           String          @unique
-  role            Role
-  motDePasse      String
-  matricule       String?         @db.VarChar(255)
-  datedenaissance DateTime?       @db.Date
-  registrationToken String?       @db.VarChar(255) // Nouveau champ
-  tokenExpiresAt    DateTime?                     // Date d’expiration du lien
-  isActive          Boolean       @default(false) // Pour bloquer l’accès si pas encore activé
-
-  administrateur  Administrateur?
-  employe         Employe?
-  responsable     Responsable?
+  id                 String              @id @default(uuid())
+  nom                String
+  prenom             String
+  email              String              @unique
+  role               Role
+  motDePasse         String
+  datedenaissance    DateTime?           @db.Date
+  isActive           Boolean             @default(false)
+  matricule          String?             @db.VarChar(255)
+  registrationToken  String?             @db.VarChar(255)
+  tokenExpiresAt     DateTime?
+  administrateur     Administrateur?
+  demandeInscription DemandeInscription?
+  employe            Employe?
+  responsable        Responsable?
 }
 
 model Employe {
@@ -33,7 +33,7 @@ model Employe {
   soldeConges   Int            @default(0)
   demandes      Demande[]
   utilisateur   Utilisateur    @relation(fields: [id], references: [id])
-  responsable   Responsable?   @relation("EmployeResponsable", fields: [responsableId], references: [id], onDelete: Cascade)
+  responsable   Responsable?   @relation("EmployeResponsable", fields: [responsableId], references: [id])
   notifications Notification[]
   pointages     Pointage[]
   taches        Tache[]
@@ -91,14 +91,31 @@ model Demande {
 }
 
 model Notification {
-  id            String       @id @default(uuid())
+  id            String       @id @default(cuid())
   message       String
   employeId     String?
   responsableId String?
   dateEnvoi     DateTime     @default(now())
   lu            Boolean      @default(false)
+  type          String?
   employe       Employe?     @relation(fields: [employeId], references: [id])
   responsable   Responsable? @relation(fields: [responsableId], references: [id])
+}
+
+model DemandeInscription {
+  id             String                   @id @default(uuid())
+  utilisateurId  String                   @unique
+  statut         StatutDemandeInscription @default(EN_ATTENTE)
+  demandeDate    DateTime                 @default(now())
+  expirationDate DateTime?
+  utilisateur    Utilisateur              @relation(fields: [utilisateurId], references: [id])
+}
+
+
+enum StatutDemandeInscription {
+  APPROUVEE
+  REJETEE
+  EN_ATTENTE
 }
 
 enum Role {

@@ -1,4 +1,10 @@
-import { IsEmail, IsString, IsEnum , MinLength , IsUUID , IsOptional , IsDateString} from 'class-validator';
+import { IsEmail,ValidateIf, IsString,IsNotEmpty, IsEnum , MinLength , IsUUID , IsOptional , IsDateString} from 'class-validator';
+
+export enum TypeResponsable {
+  RH = 'RH',
+  CHEF_EQUIPE = 'CHEF_EQUIPE',
+}
+
 
 // Définir les rôles comme une énumération possible
 export class CreateUtilisateurDto {
@@ -29,5 +35,12 @@ export class CreateUtilisateurDto {
 
   @IsOptional()  // La date de naissance est optionnelle
   @IsDateString()  // Validation du format de la date
-  dateDeNaissance?: string;
+  datedenaissance?: string;
+
+
+  @ValidateIf(o => o.role === 'RESPONSABLE')
+  @IsEnum(TypeResponsable)  
+  @IsNotEmpty()
+  typeResponsable?: TypeResponsable;
+
 }

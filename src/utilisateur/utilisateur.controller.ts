@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Param, Request, Put, Delete, Patch } from '@nestjs/common';
+import { Controller,UseGuards, Get, Post, Body, Param, Request, Put, Delete, Patch } from '@nestjs/common';
 import { UtilisateursService } from './utilisateur.service';
 import { CreateUtilisateurDto } from './dto/create-utilisateur.dto';
 import { UpdateUtilisateurDto } from './dto/update-utilisateur.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
+
 
 @ApiTags('Utilisateurs')
 @Controller('utilisateurs')
@@ -38,38 +39,44 @@ export class UtilisateursController {
     return this.utilisateursService.assignerResponsable(id, responsableIdDto.responsableId);
   }
 
+  
+
   // Récupérer tous les utilisateurs
-  @Get()
+  @Get('chefs-equipe')
   @ApiOperation({ summary: 'Obtenir tous les utilisateurs' })
   @ApiResponse({ status: 200, description: 'Liste des utilisateurs récupérée avec succès' })
   async findAll(@Request() req) {
     console.log('Utilisateur Authentifié:', req.user);
-    return this.utilisateursService.findAll();
+    return this.utilisateursService.findChefsEquipe();
   }
 
   // Récupérer un utilisateur par ID
-  @Get(':id')
-  @ApiOperation({ summary: 'Obtenir un utilisateur par ID' })
-  @ApiResponse({ status: 200, description: 'Utilisateur récupéré avec succès' })
-  async findOne(@Param('id') id: string) {
-    return this.utilisateursService.findOne(id);
+  @Get()
+  @ApiOperation({ summary: 'Récupérer tous les employés' })
+  @ApiResponse({ status: 200, description: 'Liste des employés récupérée avec succès.' })
+  async findMany() {
+    return this.utilisateursService.findMany();
   }
 
-  // Mettre à jour un utilisateur
   @Put(':id')
   @ApiOperation({ summary: 'Mettre à jour un utilisateur' })
   @ApiResponse({ status: 200, description: 'Utilisateur mis à jour avec succès' })
-  async update(@Param('id') id: string, @Body() updateUtilisateurDto: UpdateUtilisateurDto) {
+  @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
+  async update(
+    @Param('id') id: string,
+    @Body() updateUtilisateurDto: UpdateUtilisateurDto
+  ) {
     return this.utilisateursService.update(id, updateUtilisateurDto);
   }
 
-  // Supprimer un utilisateur
   @Delete(':id')
   @ApiOperation({ summary: 'Supprimer un utilisateur' })
   @ApiResponse({ status: 200, description: 'Utilisateur supprimé avec succès' })
+  @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
   async remove(@Param('id') id: string) {
     return this.utilisateursService.remove(id);
   }
+
 
   // Récupérer le nombre total d'employés
   @Get('count/employes')
@@ -86,4 +93,7 @@ export class UtilisateursController {
   async countResponsables() {
     return { totalResponsables: await this.utilisateursService.countResponsables() };
   }
+
+  
+
 }

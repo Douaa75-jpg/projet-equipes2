@@ -85,6 +85,7 @@ async findAll() {
       typeResponsable: true,
       utilisateur: {
         select: {
+          id: true,
           nom: true,
           prenom: true,
           email: true,
@@ -96,6 +97,7 @@ async findAll() {
         select: {
           utilisateur: {
             select: {
+              id: true,
               nom: true,
               prenom: true,
               email: true,

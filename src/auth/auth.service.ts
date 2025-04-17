@@ -10,6 +10,7 @@ interface UtilisateurAvecResponsable {
   nom: string;
   prenom: string;
   email: string;
+
   motDePasse: string;
   role: string;
   responsable?: {
@@ -78,6 +79,9 @@ export class AuthService {
       email: user.email,
       role: user.role,
       nom: user.nom,
+      prenom: user.prenom, 
+      matricule: (user as any).matricule, 
+      datedenaissance: (user as any).datedenaissance,
       typeResponsable: user.role === 'RESPONSABLE' ? user.responsable?.typeResponsable : null, // Renvoie null si responsable ou typeResponsable est absent
     };
 
@@ -93,6 +97,9 @@ export class AuthService {
         email: user.email,
         role: user.role,
         nom: user.nom,
+        prenom: user.prenom, 
+        matricule: (user as any).matricule,
+        datedenaissance: (user as any).datedenaissance,
         typeResponsable: user.responsable?.typeResponsable || null, // Renvoi null si typeResponsable est absent
       },
     };

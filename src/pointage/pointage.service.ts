@@ -13,37 +13,61 @@ export class PointageService {
   constructor(private prisma: PrismaService) {}
 
   @Cron('0 10 * * *') 
-async enregistrerAbsences() {
-  const dateAujourdhui = moment.utc().startOf('day').toISOString();
-  const finJournee = moment.utc().startOf('day').add(9, 'hours').toISOString();
-
-  this.logger.log('Vérification des absences...');
-
-  // Récupérer tous les employés qui N'ONT PAS de pointage aujourd'hui
-  const employesAbsents = await this.prisma.employe.findMany({
-    where: {
-      pointages: {
-        none: { date: { gte: dateAujourdhui, lte: finJournee } },
+  async enregistrerAbsences() {
+    const dateAujourdhui = moment.utc().startOf('day').toISOString();
+    const finJournee = moment.utc().startOf('day').add(10, 'hours').toISOString();
+  
+    this.logger.log('Vérification des absences...');
+  
+    // Vérification de l'heure actuelle
+    const heureActuelle = moment.utc();
+    if (heureActuelle.isBefore(moment.utc().startOf('day').add(10, 'hours'))) {
+      this.logger.log('Il est avant 10h00, pas d\'enregistrement d\'absences.');
+      return;
+    }
+  
+    // Récupérer les employés absents
+    const employesAbsents = await this.prisma.employe.findMany({
+      where: {
+        pointages: {
+          none: { date: { gte: dateAujourdhui, lte: finJournee } },
+        },
       },
-    },
-  });
-
-  // Créer les absences en une seule requête
-  await this.prisma.pointage.createMany({
-    data: employesAbsents.map(employe => ({
-      employeId: employe.id,
-      date: dateAujourdhui,
-      heureArrivee: new Date(),
-      statut: Statut.ABSENT,
-      heureDepart: null,
-    })),
-    skipDuplicates: true, // Évite les doublons
-  });
-
-  employesAbsents.forEach(employe =>
-    this.logger.warn(`Employé ${employe.id} est marqué comme ABSENT.`)
-  );
-}
+    });
+  
+    this.logger.log(`Employés absents à 10h00: ${employesAbsents.length}`);
+  
+    // Ajouter les absences
+    await this.prisma.pointage.createMany({
+      data: employesAbsents.map(employe => ({
+        employeId: employe.id,
+        date: dateAujourdhui,
+        heureArrivee: new Date(),
+        statut: Statut.ABSENT,
+        heureDepart: null,
+      })),
+      skipDuplicates: true,
+      }).then(() => {
+        this.logger.log('Les absences ont été ajoutées avec succès.');
+      }).catch(error => {
+        this.logger.error('Erreur lors de l\'ajout des absences:', error);
+      });
+  
+    employesAbsents.forEach(employe =>
+      this.logger.warn(`Employé ${employe.id} est marqué comme ABSENT.`)
+    );
+  
+    // Vérifier si les absences ont été ajoutées avec succès
+    const absentsAfterInsert = await this.prisma.pointage.findMany({
+      where: {
+        statut: Statut.ABSENT,
+        date: dateAujourdhui,
+      },
+    });
+  
+    this.logger.log(`Nombre de pointages absents après l'ajout : ${absentsAfterInsert.length}`);
+  }
+  
 
 
 
@@ -52,7 +76,10 @@ async enregistrerAbsences() {
     try {
       const { employeId, heureArrivee, date } = createPointageDto;
       console.log('Données reçues pour le pointage:', createPointageDto);
-  
+      
+      const dateConverted = new Date(date);
+      const heureArriveeConverted = new Date(heureArrivee);
+
       const dateDebutJournee = moment.utc(date).startOf('day').add(8, 'hours'); // 8:00
       const dateFinJournee = moment.utc(date).startOf('day').add(10, 'hours'); // 10:00
   
@@ -90,8 +117,8 @@ async enregistrerAbsences() {
       return await this.prisma.pointage.create({
         data: {
           employeId,
-          date,
-          heureArrivee,
+          date: dateConverted,  // Utilisation de Date ici
+          heureArrivee: heureArriveeConverted,  
           statut,
           heureDepart: null,
         },
