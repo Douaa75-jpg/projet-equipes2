@@ -24,7 +24,7 @@ export class CreateDemandeDto {
   dateFin?: string;
 
   @IsEnum(StatutDemande)
-  statut: StatutDemande = StatutDemande.SOUMISE;
+  statut: StatutDemande = StatutDemande.EN_ATTENTE;
 
   @IsOptional()
   @IsString()

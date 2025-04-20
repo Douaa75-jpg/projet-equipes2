@@ -101,53 +101,26 @@ async enregistrerHeureDepart(
   return this.pointageService.enregistrerHeureDepart(employeId,body.date, body.heureDepart);
 }
 
+// Dans votre contrôleur par exemple
+@Get('stats/presences-par-jour')
+async getPresencesParJour(
+  @Query('dateDebut') dateDebut: string,
+  @Query('dateFin') dateFin: string,
+) {
+  return this.pointageService.getNombreEmployesPresentParJour(dateDebut, dateFin);
+}
 
 
+@Get('stats/presences-aujourdhui')
+async getPresencesAujourdhui() {
+  return this.pointageService.getNombreEmployesPresentAujourdhui();
+}
 
-  // Route pour enregistrer l'heure de départ pour déjeuner
-  @Patch('depart-dejeuner/:employeId')
-  @ApiOperation({ summary: 'Enregistrer l\'heure de départ pour déjeuner d\'un employé' })
-  @ApiBody({
-    description: 'Les données nécessaires pour enregistrer l\'heure de départ pour déjeuner',
-    type: Object,
-    examples: {
-      exemple: {
-        value: {
-          date: '2025-03-31',
-          heureDepartDej: '12:00:00'
-        },
-        description: 'Exemple d\'heure de départ pour déjeuner'
-      }
-    }
-  })
-  async enregistrerHeureDepartDej(
-    @Param('employeId') employeId: string,
-    @Body() { date, heureDepartDej }: { date: string, heureDepartDej: string }
-  ) {
-    return this.pointageService.enregistrerHeureDepartDej(employeId, date, heureDepartDej);
-  }
-
-  // Route pour enregistrer l'heure de retour de déjeuner
-  @Patch('retour-dejeuner/:employeId')
-  @ApiOperation({ summary: 'Enregistrer l\'heure de retour de déjeuner d\'un employé' })
-  @ApiBody({
-    description: 'Les données nécessaires pour enregistrer l\'heure de retour de déjeuner',
-    type: Object,
-    examples: {
-      exemple: {
-        value: {
-          date: '2025-03-31',
-          heureRetourDej: '13:00:00'
-        },
-        description: 'Exemple d\'heure de retour de déjeuner'
-      }
-    }
-  })
-  async enregistrerHeureRetourDej(
-    @Param('employeId') employeId: string,
-    @Body() { date, heureRetourDej }: { date: string, heureRetourDej: string }
-  ) {
-    return this.pointageService.enregistrerHeureRetourDej(employeId, date, heureRetourDej);
-  }
-
+@Get('absences/aujourdhui')
+async getAbsencesAujourdhui() {
+  return {
+    nombreAbsents: await this.pointageService.getNombreEmployesAbsentAujourdhui(),
+    date: moment().format('YYYY-MM-DD'),
+  };
+}
 }

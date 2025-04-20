@@ -167,7 +167,7 @@ export class DemandeService {
   async remove(id: string, userId: string) {
     const demande = await this.prisma.demande.findUnique({ where: { id } });
     if (!demande) throw new NotFoundException("La demande n'existe pas.");
-    if (demande.statut !== 'SOUMISE') {
+    if (demande.statut !== 'EN_ATTENTE') {
       throw new BadRequestException("Impossible de supprimer une demande déjà traitée.");
     }
     if (demande.employeId !== userId) {
@@ -176,4 +176,45 @@ export class DemandeService {
     await this.prisma.demande.delete({ where: { id } });
     return { message: "✅ Demande supprimée avec succès." };
   }
+  // demande.service.ts
+async update(id: string, data: Partial<CreateDemandeDto>, userId: string) {
+  const demande = await this.prisma.demande.findUnique({ where: { id } });
+
+  if (!demande) {
+    throw new NotFoundException("La demande n'existe pas.");
+  }
+
+  if (demande.statut !== 'EN_ATTENTE') {
+    throw new BadRequestException("Seules les demandes en attente peuvent être modifiées.");
+  }
+
+  if (demande.employeId !== userId) {
+    throw new BadRequestException("Vous n'êtes pas autorisé à modifier cette demande.");
+  }
+
+  const dateDebut = data.dateDebut ? new Date(data.dateDebut) : null;
+  const dateFin = data.dateFin ? new Date(data.dateFin) : null;
+
+  if (dateDebut && isNaN(dateDebut.getTime())) {
+    throw new BadRequestException("La date de début est invalide.");
+  }
+
+  if (dateFin && isNaN(dateFin.getTime())) {
+    throw new BadRequestException("La date de fin est invalide.");
+  }
+
+  if (dateFin && dateDebut && dateFin < dateDebut) {
+    throw new BadRequestException("La date de fin ne peut pas être antérieure à la date de début.");
+  }
+
+  return await this.prisma.demande.update({
+    where: { id },
+    data: {
+      ...data,
+      dateDebut: dateDebut ? dateDebut.toISOString() : undefined,
+      dateFin: dateFin ? dateFin.toISOString() : undefined,
+    },
+  });
+}
+
 }

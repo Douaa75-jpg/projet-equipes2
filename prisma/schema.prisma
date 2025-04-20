@@ -19,8 +19,8 @@ model Utilisateur {
   matricule          String?             @db.VarChar(255)
   registrationToken  String?             @db.VarChar(255)
   tokenExpiresAt     DateTime?
+  status             String              @default("EN_ATTENTE") // AJOUT: EN_ATTENTE, APPROVED, REJECTED
   administrateur     Administrateur?
-  demandeInscription DemandeInscription?
   employe            Employe?
   responsable        Responsable?
 }
@@ -85,7 +85,7 @@ model Demande {
   type      String
   dateDebut DateTime
   dateFin   DateTime?
-  statut    StatutDemande @default(SOUMISE)
+  statut    StatutDemande @default(  EN_ATTENTE)
   raison    String?
   employe   Employe       @relation(fields: [employeId], references: [id])
 }
@@ -102,22 +102,6 @@ model Notification {
   responsable   Responsable? @relation(fields: [responsableId], references: [id])
 }
 
-model DemandeInscription {
-  id             String                   @id @default(uuid())
-  utilisateurId  String                   @unique
-  statut         StatutDemandeInscription @default(EN_ATTENTE)
-  demandeDate    DateTime                 @default(now())
-  expirationDate DateTime?
-  utilisateur    Utilisateur              @relation(fields: [utilisateurId], references: [id])
-}
-
-
-enum StatutDemandeInscription {
-  APPROUVEE
-  REJETEE
-  EN_ATTENTE
-}
-
 enum Role {
   EMPLOYE
   RESPONSABLE
@@ -125,7 +109,7 @@ enum Role {
 }
 
 enum StatutDemande {
-  SOUMISE
+  EN_ATTENTE
   APPROUVEE
   REJETEE
 }

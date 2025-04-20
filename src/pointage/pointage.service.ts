@@ -12,31 +12,28 @@ export class PointageService {
   private readonly logger = new Logger(PointageService.name);
   constructor(private prisma: PrismaService) {}
 
-  @Cron('0 10 * * *') 
+  @Cron('0 23 * * *')
   async enregistrerAbsences() {
     const dateAujourdhui = moment.utc().startOf('day').toISOString();
-    const finJournee = moment.utc().startOf('day').add(10, 'hours').toISOString();
+    
   
     this.logger.log('Vérification des absences...');
   
-    // Vérification de l'heure actuelle
-    const heureActuelle = moment.utc();
-    if (heureActuelle.isBefore(moment.utc().startOf('day').add(10, 'hours'))) {
-      this.logger.log('Il est avant 10h00, pas d\'enregistrement d\'absences.');
-      return;
-    }
-  
-    // Récupérer les employés absents
-    const employesAbsents = await this.prisma.employe.findMany({
+     // Récupérer les employés absents (ceux sans pointage du tout aujourd'hui)
+     const employesAbsents = await this.prisma.employe.findMany({
       where: {
         pointages: {
-          none: { date: { gte: dateAujourdhui, lte: finJournee } },
+          none: { 
+            date: {
+              gte: moment.utc().startOf('day').toISOString(),
+              lte: moment.utc().endOf('day').toISOString()
+            } 
+          },
         },
       },
     });
-  
-    this.logger.log(`Employés absents à 10h00: ${employesAbsents.length}`);
-  
+
+    this.logger.log(`Employés absents aujourd'hui: ${employesAbsents.length}`);
     // Ajouter les absences
     await this.prisma.pointage.createMany({
       data: employesAbsents.map(employe => ({
@@ -80,16 +77,13 @@ export class PointageService {
       const dateConverted = new Date(date);
       const heureArriveeConverted = new Date(heureArrivee);
 
-      const dateDebutJournee = moment.utc(date).startOf('day').add(8, 'hours'); // 8:00
-      const dateFinJournee = moment.utc(date).startOf('day').add(10, 'hours'); // 10:00
-  
       // Vérifier si l'employé a déjà pointé ce jour-là
       const pointageExistant = await this.prisma.pointage.findFirst({
         where: {
           employeId,
           date: {
-            gte: dateDebutJournee.toISOString(),
-            lte: dateFinJournee.toISOString(),
+            gte: moment.utc(date).startOf('day').toISOString(),
+            lte: moment.utc(date).endOf('day').toISOString(),
           },
         },
       });
@@ -98,28 +92,12 @@ export class PointageService {
         throw new BadRequestException("L'employé a déjà pointé ce jour.");
       }
   
-      // Vérification si l'heure d'arrivée est après 10h00
-      const arriveeMoment = moment.utc(heureArrivee);
-      if (arriveeMoment.isAfter(dateFinJournee)) {
-        throw new BadRequestException("Le pointage est interdit après 10h00.");
-      }
-  
-      // Vérification du statut
-      let statut: Statut = Statut.PRESENT; // Statut par défaut (avant 8h15)
-      const debutJourneeStandard = moment.utc(date).startOf('day').add(8, 'hours');
-      
-      if (arriveeMoment.isAfter(debutJourneeStandard) && arriveeMoment.isBefore(debutJourneeStandard.add(15, 'minutes'))) {
-        statut = Statut.PRESENT;
-      } else if (arriveeMoment.isAfter(debutJourneeStandard.add(15, 'minutes'))) {
-        statut = Statut.RETARD;
-      }
-  
       return await this.prisma.pointage.create({
         data: {
           employeId,
           date: dateConverted,  // Utilisation de Date ici
           heureArrivee: heureArriveeConverted,  
-          statut,
+          statut: Statut.PRESENT,
           heureDepart: null,
         },
       });
@@ -134,21 +112,16 @@ export class PointageService {
    // Enregistrer l'heure de départ
    async enregistrerHeureDepart(employeId: string, date: string, heureDepart: string) {
     try {
-      const startOfDay = moment.utc(date).startOf('day').toISOString();
-      const endOfDay = moment.utc(date).endOf('day').toISOString();
       const heureDepartMoment = moment.utc(heureDepart);
   
-      if (heureDepartMoment.isBefore(moment.utc(date).startOf('day').add(8, 'hours'))) {
-        throw new BadRequestException("Le départ ne peut pas être avant l'heure de début.");
-      }
   
       // Recherche du pointage pour l'employé et la date donnée
       const pointage = await this.prisma.pointage.findFirst({
         where: {
           employeId: employeId,
           date: {
-            gte: startOfDay,
-            lte: endOfDay,
+            gte: moment.utc(date).startOf('day').toISOString(),
+            lte: moment.utc(date).endOf('day').toISOString(),
           },
         },
       });
@@ -157,8 +130,8 @@ export class PointageService {
         throw new NotFoundException("Pointage non trouvé pour cet employé à cette date.");
       }
 
-      if (pointage.statut !== "PRESENT" && pointage.statut !== "RETARD") {
-        throw new BadRequestException("L'employé doit être présent ou en retard pour enregistrer l'heure de départ.");
+      if (pointage.heureArrivee && heureDepartMoment.isBefore(moment(pointage.heureArrivee))) {
+        throw new BadRequestException("L'heure de départ doit être après l'heure d'arrivée.");
       }
   
       // Mise à jour de l'heure de départ
@@ -173,80 +146,6 @@ export class PointageService {
       throw new BadRequestException("Erreur lors de l'enregistrement de l'heure de départ.");
     }
   }
-  
-
-  // Enregistrer l'heure de départ pour le déjeuner
-async enregistrerHeureDepartDej(employeId: string, date: string, heureDepartDej: string) {
-  try {
-    const debutDej = moment.utc(date).startOf('day').add(12, 'hours'); // 12:00 (Début de la pause déjeuner)
-    const heureDepartDejMoment = moment.utc(heureDepartDej);
-
-    if (heureDepartDejMoment.isBefore(debutDej)) {
-      throw new BadRequestException("Le départ pour déjeuner ne peut pas être avant 12:00.");
-    }
-
-    // Trouver le pointage de l'employé pour cette date
-    const pointage = await this.prisma.pointage.findFirst({
-      where: {
-        employeId: employeId,
-        date: date, // Assurez-vous que le format de la date est cohérent
-      },
-    });
-
-    if (!pointage) {
-      throw new NotFoundException("Pointage non trouvé pour cet employé à cette date.");
-    }
-
-    // Mise à jour de l'heure de départ pour déjeuner
-    await this.prisma.pointage.update({
-      where: {
-        id: pointage.id, // Mise à jour par l'id du pointage trouvé
-      },
-      data: { heureDepartDej: heureDepartDejMoment.toISOString() },
-    });
-
-    return { message: "Heure de départ pour déjeuner enregistrée avec succès." };
-  } catch (error) {
-    console.error("Erreur lors de l'enregistrement de l'heure de départ pour déjeuner:", error);
-    throw new BadRequestException("Erreur lors de l'enregistrement de l'heure de départ pour déjeuner.");
-  }
-}
- // Enregistrer l'heure de retour du déjeuner
-async enregistrerHeureRetourDej(employeId: string, date: string, heureRetourDej: string) {
-  try {
-    const finDej = moment.utc(date).startOf('day').add(13, 'hours'); // 13:00 (Fin de la pause déjeuner)
-    const heureRetourDejMoment = moment.utc(heureRetourDej);
-
-    if (heureRetourDejMoment.isBefore(finDej)) {
-      throw new BadRequestException("Le retour de déjeuner ne peut pas être avant 13:00.");
-    }
-
-    // Trouver le pointage de l'employé pour cette date
-    const pointage = await this.prisma.pointage.findFirst({
-      where: {
-        employeId: employeId,
-        date: date, // Assurez-vous que le format de la date est cohérent
-      },
-    });
-
-    if (!pointage) {
-      throw new NotFoundException("Pointage non trouvé pour cet employé à cette date.");
-    }
-
-    // Mise à jour de l'heure de retour de déjeuner
-    await this.prisma.pointage.update({
-      where: {
-        id: pointage.id, // Mise à jour par l'id du pointage trouvé
-      },
-      data: { heureRetourDej: heureRetourDejMoment.toISOString() },
-    });
-
-    return { message: "Heure de retour de déjeuner enregistrée avec succès." };
-  } catch (error) {
-    console.error("Erreur lors de l'enregistrement de l'heure de retour de déjeuner:", error);
-    throw new BadRequestException("Erreur lors de l'enregistrement de l'heure de retour de déjeuner.");
-  }
-}
   async findAllByEmploye(employeId: string) {
     return this.prisma.pointage.findMany({
       where: { employeId: employeId },
@@ -257,41 +156,26 @@ async enregistrerHeureRetourDej(employeId: string, date: string, heureRetourDej:
 
    // Récupérer le pointage de l'employé pour la journée en cours
    async getPointageByEmployeId(employeId: string, date: string) {
-    const dateDebutJournee = moment.utc(date).startOf('day').toISOString();
-    const dateFinJournee = moment.utc(date).endOf('day').toISOString();
-
     const pointage = await this.prisma.pointage.findFirst({
       where: {
         employeId,
         date: {
-          gte: dateDebutJournee,
-          lte: dateFinJournee,
+          gte: moment.utc(date).startOf('day').toISOString(),
+          lte: moment.utc(date).endOf('day').toISOString(),
         },
       },
       include: { employe: true },
     });
 
     if (!pointage) {
-      return { statut: Statut.ABSENT };  // Utilisez Statut.ABSENT ici
+      return { statut: Statut.ABSENT };
     }
 
-    let statut: Statut = Statut.PRESENT;
-    if (statut === Statut.PRESENT) {  // Ne modifier que si PRESENT
-      const heureLimite = moment.utc(date).set({ hour: 9, minute: 0, second: 0 });
-      if (moment.utc(pointage.heureArrivee).isAfter(heureLimite)) {
-        statut = Statut.RETARD;  
-      }
-    }
-
-    return {
-      ...pointage,
-      statut,
-    };
+    return pointage;
   }
 
-
   // Calcul des heures de travail et des heures supplémentaires
-  async calculerHeuresTravail(employeId: string, dateDebut: string, dateFin: string): Promise<any> {
+  async calculerHeuresTravail(employeId: string, dateDebut: string, dateFin: string) {
     const pointages = await this.prisma.pointage.findMany({
       where: {
         employeId,
@@ -299,60 +183,33 @@ async enregistrerHeureRetourDej(employeId: string, date: string, heureRetourDej:
           gte: dateDebut,
           lte: dateFin,
         },
+        statut: Statut.PRESENT, // Seulement les présences
       },
     });
 
     let totalHeures = 0;
     let totalHeuresSup = 0;
 
-    if (pointages.length === 0) {
-      throw new Error("Aucun pointage trouvé pour cette période.");
-    }
-
-    for (const pointage of pointages) {
+    pointages.forEach(pointage => {
       if (pointage.heureArrivee && pointage.heureDepart) {
         const arrivee = moment(pointage.heureArrivee);
         const depart = moment(pointage.heureDepart);
+        let duree = depart.diff(arrivee, 'hours', true);
 
-        if (arrivee.isValid() && depart.isValid()) {
-          let duree = depart.diff(arrivee, 'hours', true);
+        // Soustraire la pause déjeuner si elle existe
+        if (pointage.heureDepartDej && pointage.heureRetourDej) {
+          const dureePause = moment(pointage.heureRetourDej).diff(moment(pointage.heureDepartDej), 'hours', true);
+          duree -= dureePause;
+        }
 
-          if (pointage.heureDepartDej && pointage.heureRetourDej) {
-            const departDej = moment(pointage.heureDepartDej);
-            const retourDej = moment(pointage.heureRetourDej);
-
-            if (departDej.isValid() && retourDej.isValid()) {
-              const dureePause = retourDej.diff(departDej, 'hours', true);
-              duree -= dureePause;
-            }
-          }
-
-          totalHeures += duree;
-
-          if (duree > 8) {
-            totalHeuresSup += duree - 8;
-          }
+        totalHeures += duree;
+        if (duree > 8) {
+          totalHeuresSup += duree - 8;
         }
       }
-    }
-    return { totalHeures, totalHeuresSup };
-  }
-
-  // Enregistrer la pause déjeuner
-  async enregistrerPauseDejeuner(id: string, updatePointageDto: UpdatePointageDto) {
-    const { heureDepartDej, heureRetourDej } = updatePointageDto;
-
-    if (!heureDepartDej || !heureRetourDej) {
-      throw new Error("Les heures de pause déjeuner sont requises.");
-    }
-
-    return this.prisma.pointage.update({
-      where: { id },
-      data: {
-        heureDepartDej,
-        heureRetourDej,
-      },
     });
+
+    return { totalHeures, totalHeuresSup };
   }
 
   //  Récupérer tous les pointages
@@ -431,6 +288,136 @@ async enregistrerHeureRetourDej(employeId: string, date: string, heureRetourDej:
     return absences;
   }
 
+  // Ajoutez cette méthode si elle n'existe pas
+  async getNombreEmployesPresentParJour(dateDebut: string, dateFin: string) {
+    // Vérifier que dateDebut est avant dateFin
+    if (moment(dateDebut).isAfter(moment(dateFin))) {
+      throw new BadRequestException("La date de début doit être avant la date de fin");
+    }
+
+    const pointages = await this.prisma.pointage.findMany({
+      where: {
+        date: {
+          gte: moment.utc(dateDebut).startOf('day').toISOString(),
+          lte: moment.utc(dateFin).endOf('day').toISOString(),
+        },
+        statut: Statut.PRESENT,
+      },
+      select: {
+        date: true,
+        employeId: true,
+      },
+      orderBy: {
+        date: 'asc',
+      },
+    });
+
+    const result = pointages.reduce((acc, pointage) => {
+      const dateStr = moment(pointage.date).format('YYYY-MM-DD');
+      
+      if (!acc[dateStr]) {
+        acc[dateStr] = {
+          date: dateStr,
+          nombreEmployesPresent: 0,
+          employesIds: new Set<string>(),
+        };
+      }
+      
+      acc[dateStr].employesIds.add(pointage.employeId);
+      acc[dateStr].nombreEmployesPresent = acc[dateStr].employesIds.size;
+      
+      return acc;
+    }, {});
+
+    return Object.values(result).map((item: any) => ({
+      date: item.date,
+      nombreEmployesPresent: item.nombreEmployesPresent,
+    }));
+  }
+
+  async getNombreEmployesPresentAujourdhui() {
+    const aujourdhui = moment().format('YYYY-MM-DD');
+    const result = await this.getNombreEmployesPresentParJour(aujourdhui, aujourdhui);
+    return result[0]?.nombreEmployesPresent || 0;
+  }
+
+  async getNombreEmployesAbsentParJour(dateDebut: string, dateFin: string) {
+    // Vérifier que dateDebut est avant dateFin
+    if (moment(dateDebut).isAfter(moment(dateFin))) {
+      throw new BadRequestException("La date de début doit être avant la date de fin");
+    }
   
+    // Récupérer tous les employés
+    const tousLesEmployes = await this.prisma.employe.findMany({
+      select: { id: true }
+    });
+  
+    // Récupérer les pointages dans la période
+    const pointages = await this.prisma.pointage.findMany({
+      where: {
+        date: {
+          gte: moment.utc(dateDebut).startOf('day').toISOString(),
+          lte: moment.utc(dateFin).endOf('day').toISOString(),
+        },
+        statut: Statut.ABSENT,
+      },
+      select: {
+        date: true,
+        employeId: true,
+      },
+      orderBy: {
+        date: 'asc',
+      },
+    });
+  
+    // Compter les absences par jour
+    const result = pointages.reduce((acc, pointage) => {
+      const dateStr = moment(pointage.date).format('YYYY-MM-DD');
+      
+      if (!acc[dateStr]) {
+        acc[dateStr] = {
+          date: dateStr,
+          nombreEmployesAbsent: 0,
+          employesIds: new Set<string>(),
+        };
+      }
+      
+      acc[dateStr].employesIds.add(pointage.employeId);
+      acc[dateStr].nombreEmployesAbsent = acc[dateStr].employesIds.size;
+      
+      return acc;
+    }, {});
+  
+    // Pour les jours où il n'y a pas d'absences, nous devons quand même les inclure
+    const joursSansAbsences = {};
+    const currentDate = moment(dateDebut);
+    const endDate = moment(dateFin);
+  
+    while (currentDate.isSameOrBefore(endDate)) {
+      const dateStr = currentDate.format('YYYY-MM-DD');
+      if (!result[dateStr]) {
+        joursSansAbsences[dateStr] = {
+          date: dateStr,
+          nombreEmployesAbsent: 0,
+        };
+      }
+      currentDate.add(1, 'day');
+    }
+  
+    return Object.values({
+      ...result,
+      ...joursSansAbsences,
+    }).map((item: any) => ({
+      date: item.date,
+      nombreEmployesAbsent: item.nombreEmployesAbsent || 0,
+    }));
+  }
+  
+  // Méthode pour récupérer le nombre d'absents aujourd'hui
+  async getNombreEmployesAbsentAujourdhui() {
+    const aujourdhui = moment().format('YYYY-MM-DD');
+    const result = await this.getNombreEmployesAbsentParJour(aujourdhui, aujourdhui);
+    return result[0]?.nombreEmployesAbsent || 0;
+  }
 }
 

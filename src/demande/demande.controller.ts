@@ -38,4 +38,15 @@ export class DemandeController {
   remove(@Param('id') id: string, @Body('userId') userId: string) {
     return this.demandeService.remove(id, userId);
   }
+
+  
+  @Patch(':id')
+update(
+  @Param('id') id: string,
+  @Body() data: Partial<CreateDemandeDto>,
+  @Body('userId') userId: string
+) {
+  return this.demandeService.update(id, data, userId);
+}
+
 }
