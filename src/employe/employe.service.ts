@@ -197,39 +197,68 @@ export class EmployeService {
   }
 
   // ✅ Supprimer un employé
-  @ApiResponse({ status: 200, description: 'Employé supprimé avec succès.' })
   async remove(id: string) {
-    try {
-      // Vérifier si l'employé existe avant de procéder à la suppression
-      const employe = await this.prisma.employe.findUnique({
+    return await this.prisma.$transaction(async (prisma) => {
+      // 1. التحقق من وجود الموظف
+      const employe = await prisma.employe.findUnique({
         where: { id },
+        include: { utilisateur: true }
       });
   
       if (!employe) {
         throw new NotFoundException("Employé non trouvé");
       }
   
-      // Séparer l'employé du responsable
-      await this.prisma.employe.update({
+      // 2. حذف جميع السجلات المرتبطة
+      await prisma.pointage.deleteMany({ where: { employeId: id } });
+      await prisma.demande.deleteMany({ where: { employeId: id } });
+      await prisma.notification.deleteMany({ where: { employeId: id } });
+      await prisma.tache.deleteMany({ where: { employeId: id } });
+  
+      // 3. حذف الموظف نفسه
+      await prisma.employe.delete({ where: { id } });
+  
+      // 4. التعامل مع المستخدم المرتبط
+      const userRelations = await prisma.utilisateur.findUnique({
         where: { id },
-        data: { responsableId: null },
+        select: {
+          responsable: true,
+          administrateur: true
+        }
       });
   
-      // Supprimer les enregistrements associés
-      await this.prisma.pointage.deleteMany({ where: { employeId: id } });
-      await this.prisma.demande.deleteMany({ where: { employeId: id } });
-      await this.prisma.notification.deleteMany({ where: { employeId: id } });
+      // التحقق من وجود userRelations بشكل صحيح
+      if (!userRelations) {
+        // إذا لم يتم العثور على المستخدم، نتابع دون حذف
+        return { message: "Employé supprimé (utilisateur non trouvé)" };
+      }
   
-      // Supprimer l'employé
-      await this.prisma.employe.delete({
-        where: { id },
-      });
+      // التحقق من العلاقات الأخرى
+      const hasOtherRoles = userRelations.responsable || userRelations.administrateur;
   
-      return { message: "Employé supprimé avec succès" };
-    } catch (error) {
-      console.error('Erreur lors de la suppression de l\'employé:', error);
-      throw new InternalServerErrorException('Erreur lors de la suppression de l\'employé');
-    }
+      if (!hasOtherRoles) {
+        // لا توجد أدوار أخرى - حذف المستخدم
+        await prisma.utilisateur.delete({ where: { id } });
+      } else {
+        // يوجد أدوار أخرى - فصل علاقة الموظف فقط
+        await prisma.utilisateur.update({
+          where: { id },
+          data: {
+            employe: { disconnect: true },
+            role: employe.utilisateur.role === 'EMPLOYE' ? 
+                 (userRelations.responsable ? 'RESPONSABLE' : 'ADMINISTRATEUR') : 
+                 employe.utilisateur.role
+          }
+        });
+      }
+  
+      return { message: "Employé supprimé avec succès et toutes ses données associées" };
+    }).catch((error) => {
+      console.error('Erreur lors de la suppression:', error);
+      throw new InternalServerErrorException(
+        'Échec de la suppression de l\'employé: ' + error.message
+      );
+    });
   }
   
 

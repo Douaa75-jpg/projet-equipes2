@@ -33,7 +33,7 @@ model Employe {
   soldeConges   Int            @default(0)
   demandes      Demande[]
   utilisateur   Utilisateur    @relation(fields: [id], references: [id])
-  responsable   Responsable?   @relation("EmployeResponsable", fields: [responsableId], references: [id])
+  responsable      Responsable?     @relation("EmployeResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
   notifications Notification[]
   pointages     Pointage[]
   taches        Tache[]
@@ -55,9 +55,9 @@ model Responsable {
   typeResponsable  TypeResponsable?
   administrateurId String?
   employes         Employe[]        @relation("EmployeResponsable")
-  notifications    Notification[]
+  notifications    Notification[]   
   administrateur   Administrateur?  @relation(fields: [administrateurId], references: [id])
-  utilisateur      Utilisateur      @relation(fields: [id], references: [id])
+  utilisateur      Utilisateur      @relation(fields: [id], references: [id], onDelete: Cascade)
 }
 
 model Administrateur {
@@ -99,7 +99,7 @@ model Notification {
   lu            Boolean      @default(false)
   type          String?
   employe       Employe?     @relation(fields: [employeId], references: [id])
-  responsable   Responsable? @relation(fields: [responsableId], references: [id])
+  responsable   Responsable? @relation(fields: [responsableId], references: [id], onDelete: Cascade)
 }
 
 enum Role {

@@ -145,18 +145,23 @@ async findAll() {
     if (existingUser && existingUser.id !== id) {
       throw new BadRequestException('L\'email est déjà utilisé par un autre responsable.');
     }
+    
+    // Convertir la date de naissance en objet Date si elle est fournie
+    let dateDeNaissance: Date | null = null;
+    if (updateResponsableDto.datedenaissance) {
+      dateDeNaissance = new Date(updateResponsableDto.datedenaissance);
+      if (isNaN(dateDeNaissance.getTime())) {
+        throw new BadRequestException('La date de naissance doit être une date valide.');
+      }
+    }
 
     let updatedData: any = {
       nom: updateResponsableDto.nom,
       prenom: updateResponsableDto.prenom,
       email: updateResponsableDto.email,
+      matricule:updateResponsableDto.matricule,
+      ...(dateDeNaissance && { datedenaissance: dateDeNaissance }),
     };
-
-    // Vérifier si un mot de passe est fourni, sinon ne pas le modifier
-    if (updateResponsableDto.motDePasse) {
-      const salt = await bcrypt.genSalt(10);
-      updatedData.motDePasse = await bcrypt.hash(updateResponsableDto.motDePasse, salt);
-    }
 
     return this.prisma.responsable.update({
       where: { id },
@@ -178,14 +183,37 @@ async findAll() {
     // Vérifier si le responsable existe
     const responsable = await this.prisma.responsable.findUnique({
       where: { id },
+      include: {
+        employes: true, // Inclure les employés liés
+        notifications: true, // Inclure les notifications liées
+      },
     });
-
+  
     if (!responsable) {
       throw new NotFoundException(`Responsable avec l'ID ${id} introuvable`);
     }
-
-    return this.prisma.responsable.delete({
-      where: { id },
+  
+    // Utiliser une transaction pour garantir l'intégrité des données
+    return this.prisma.$transaction(async (prisma) => {
+      // 1. Mettre à jour les employés qui ont ce responsable comme responsableId
+      if (responsable.employes.length > 0) {
+        await prisma.employe.updateMany({
+          where: { responsableId: id },
+          data: { responsableId: null }, // Retirer la référence
+        });
+      }
+  
+      // 2. Supprimer les notifications liées à ce responsable
+      if (responsable.notifications.length > 0) {
+        await prisma.notification.deleteMany({
+          where: { responsableId: id },
+        });
+      }
+  
+      // 3. Finalement supprimer le responsable
+      return prisma.responsable.delete({
+        where: { id },
+      });
     });
   }
 
