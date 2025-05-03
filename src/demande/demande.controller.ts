@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, HttpStatus,Get,HttpException, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { DemandeService } from './demande.service';
 import { CreateDemandeDto } from './dto/create-demande.dto';
 
@@ -6,11 +6,8 @@ import { CreateDemandeDto } from './dto/create-demande.dto';
 export class DemandeController {
   constructor(private readonly demandeService: DemandeService) {}
 
-  
   @Post()
   create(@Body() createDemandeDto: CreateDemandeDto) {
-    console.log("Date envoyée :", createDemandeDto.dateDebut);
-    console.log("Date actuelle UTC :", new Date(Date.now()).toISOString());
     return this.demandeService.create(createDemandeDto);
   }
 
@@ -24,14 +21,38 @@ export class DemandeController {
     return this.demandeService.findOne(id);
   }
 
+ // dans votre contrôleur
+ @Get(':id/solde')
+ async getSolde(@Param('id') employeId: string) {
+   const result = await this.demandeService.getSoldeConges(employeId);
+   return {
+     success: true,
+     soldeConges: Number(result.soldeConges) // تأكد من التحويل لعدد
+   };
+ }
+
+  @Get(':id/historique')
+  getHistorique(@Param('id') employeId: string) {
+    return this.demandeService.getLeaveHistory(employeId);
+  }
+
+  @Post(':id/reset-solde')
+  resetSolde(@Param('id') employeId: string) {
+    return this.demandeService.resetAnnualLeave(employeId);
+  }
+
   @Patch(':id/approve')
   approve(@Param('id') id: string, @Body('userId') userId: string) {
     return this.demandeService.approve(id, userId);
   }
 
   @Patch(':id/reject')
-  reject(@Param('id') id: string, @Body('userId') userId: string , @Body('raison') raison: string) {
-    return this.demandeService.reject(id, userId ,raison);
+  reject(
+    @Param('id') id: string, 
+    @Body('userId') userId: string,
+    @Body('raison') raison: string
+  ) {
+    return this.demandeService.reject(id, userId, raison);
   }
 
   @Delete(':id')
@@ -39,14 +60,23 @@ export class DemandeController {
     return this.demandeService.remove(id, userId);
   }
 
-  
   @Patch(':id')
-update(
-  @Param('id') id: string,
-  @Body() data: Partial<CreateDemandeDto>,
-  @Body('userId') userId: string
-) {
-  return this.demandeService.update(id, data, userId);
-}
-
+  async update(
+    @Param('id') id: string,
+    @Body() data: Partial<CreateDemandeDto> & { userId?: string },
+    @Body('userId') userId: string
+  ) {
+    try {
+      const result = await this.demandeService.update(id, { ...data, userId }, userId);
+      return {
+        success: true,
+        data: result
+      };
+    } catch (e) {
+      throw new HttpException({
+        success: false,
+        message: e.message
+      }, HttpStatus.BAD_REQUEST);
+    }
+  }
 }

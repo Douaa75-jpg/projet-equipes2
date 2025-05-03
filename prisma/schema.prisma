@@ -19,6 +19,8 @@ model Utilisateur {
   matricule          String?             @db.VarChar(255)
   registrationToken  String?             @db.VarChar(255)
   tokenExpiresAt     DateTime?
+  resetPasswordToken String?
+  resetPasswordExpires DateTime?
   status             String              @default("EN_ATTENTE") // AJOUT: EN_ATTENTE, APPROVED, REJECTED
   administrateur     Administrateur?
   employe            Employe?
@@ -67,16 +69,14 @@ model Administrateur {
 }
 
 model Pointage {
-  id             String    @id @default(uuid())
-  employeId      String
-  date           DateTime
-  heureArrivee   DateTime
-  heureDepart    DateTime?
-  statut         Statut
-  heureDepartDej DateTime?
-  heureRetourDej DateTime?
-  deletedAt      DateTime?
-  employe        Employe   @relation(fields: [employeId], references: [id])
+  id           String    @id @default(uuid())
+  employeId    String
+  date         DateTime
+  heure        DateTime  // Heure de pointage (entrée ou sortie)
+  type         PointageType // ENTRÉE ou SORTIE
+  employe      Employe   @relation(fields: [employeId], references: [id])
+  
+  @@index([employeId, date])
 }
 
 model Demande {
@@ -112,6 +112,11 @@ enum StatutDemande {
   EN_ATTENTE
   APPROUVEE
   REJETEE
+}
+
+enum PointageType {
+  ENTREE
+  SORTIE
 }
 
 enum TypeResponsable {

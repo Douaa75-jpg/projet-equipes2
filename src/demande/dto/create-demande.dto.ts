@@ -1,12 +1,11 @@
-import { IsEnum, IsDateString, IsOptional, IsString, MinDate } from 'class-validator';
+import { IsEnum, IsDateString, IsOptional, IsString, IsNumber, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { StatutDemande } from '@prisma/client';
 
 export enum TypeDemande {
-  CONGE = 'congé',
-  ABSENCE = 'absence',
-  AUTORISATION_SORTIE = 'autorization_sortie'
-  
+  CONGE = 'CONGE', // تغيير من 'congé' إلى 'CONGE'
+  ABSENCE = 'ABSENCE',
+  AUTORISATION_SORTIE = 'AUTORISATION_SORTIE'
 }
 
 export class CreateDemandeDto {
@@ -29,4 +28,13 @@ export class CreateDemandeDto {
   @IsOptional()
   @IsString()
   raison?: string;
+  
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  soldeConges?: number;
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }

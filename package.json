@@ -6,7 +6,8 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build",
+    "build": "nest build && npm run copy-templates",
+    "copy-templates": "xcopy src\\templates dist\\templates /E /I /Y",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -38,9 +39,11 @@
     "bcryptjs": "^3.0.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "date-fns": "^4.1.0",
     "firebase-admin": "^13.2.0",
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.30.1",
+    "moment-timezone": "^0.5.48",
     "nodemailer": "^6.10.1",
     "passport": "^0.7.0",
     "passport-azure-ad": "^4.3.5",
@@ -60,9 +63,11 @@
     "@nestjs/testing": "^11.0.1",
     "@swc/cli": "^0.6.0",
     "@swc/core": "^1.10.7",
+    "@types/date-fns": "^2.5.3",
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.14",
     "@types/moment": "^2.11.29",
+    "@types/moment-timezone": "^0.5.13",
     "@types/node": "^22.10.7",
     "@types/supertest": "^6.0.2",
     "eslint": "^9.18.0",
@@ -98,4 +103,5 @@
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   }
+  
 }

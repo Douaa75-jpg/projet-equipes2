@@ -1,8 +1,12 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException,BadRequestException,  Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UtilisateursService } from 'src/utilisateur/utilisateur.service';
 import { ResponsableService } from 'src/responsable/responsable.service';
+import { MailerService } from '@nestjs-modules/mailer';
+import { v4 as uuidv4 } from 'uuid';
+import { addHours } from 'date-fns';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 // Interface Utilisateur avec typeResponsable
 interface UtilisateurAvecResponsable {
@@ -26,6 +30,8 @@ export class AuthService {
     private utilisateursService: UtilisateursService,
     private jwtService: JwtService,
     private responsableService: ResponsableService, // Injecter le service responsable
+    private mailerService: MailerService,
+    private prisma: PrismaService,
   ) {}
 
   // Validation de l'utilisateur
@@ -109,5 +115,87 @@ export class AuthService {
   async logout() {
     this.logger.debug('Déconnexion de l\'utilisateur');
     return { message: 'Déconnexion réussie. Le token a été supprimé côté client.' };
+  }
+
+
+
+
+  async createResetToken(email: string): Promise<{ message: string }> {
+    this.logger.debug(`Tentative de réinitialisation pour: ${email}`);
+    
+    const user = await this.prisma.utilisateur.findUnique({ where: { email } });
+    
+    if (!user) {
+      this.logger.warn(`Email non trouvé: ${email}`);
+      // Ne pas révéler que l'email n'existe pas pour des raisons de sécurité
+      return { message: 'Si cet email existe, un lien de réinitialisation a été envoyé' };
+    }
+
+    try {
+      const token = uuidv4();
+      const expires = addHours(new Date(), 1);
+
+      await this.prisma.utilisateur.update({
+        where: { email },
+        data: { 
+          resetPasswordToken: token,
+          resetPasswordExpires: expires,
+        },
+      });
+
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const resetUrl = `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
+      console.log('Lien de réinitialisation généré:', resetUrl);
+      
+      this.logger.debug(`Lien de réinitialisation généré: ${resetUrl}`);
+
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'Réinitialisation de votre mot de passe',
+        template: 'reset-password',
+        context: {
+          name: `${user.prenom} ${user.nom}`,
+          token: token, // Ajoutez cette ligne
+          resetUrl: resetUrl, // Gardez cette ligne si vous utilisez resetUrl dans le template
+        },
+      });
+
+      this.logger.log(`Email envoyé avec succès à: ${email}`);
+      return { message: 'Un email de réinitialisation a été envoyé' };
+    } catch (error) {
+      this.logger.error(`Erreur lors de l'envoi de l'email: ${error.message}`);
+      throw new BadRequestException('Erreur lors de l\'envoi de l\'email de réinitialisation');
+    }
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    const user = await this.prisma.utilisateur.findFirst({
+      where: {
+        resetPasswordToken: token,
+        resetPasswordExpires: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Token invalide ou expiré');
+    }
+
+    try {
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      
+      await this.prisma.utilisateur.update({
+        where: { id: user.id },
+        data: {
+          motDePasse: hashedPassword,
+          resetPasswordToken: null,
+          resetPasswordExpires: null,
+        },
+      });
+
+      return { message: 'Mot de passe réinitialisé avec succès' };
+    } catch (error) {
+      this.logger.error(`Erreur lors de la réinitialisation: ${error.message}`);
+      throw new BadRequestException('Erreur lors de la réinitialisation du mot de passe');
+    }
   }
 }

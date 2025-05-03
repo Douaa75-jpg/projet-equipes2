@@ -2,6 +2,8 @@ import { Controller, Post, Body, UnauthorizedException, Logger, BadRequestExcept
 import { AuthService } from './auth.service';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { ApiTags, ApiBody, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @ApiTags('Auth') // Ajoute la catégorie "Auth" dans Swagger
 @Controller('auth')
@@ -44,5 +46,20 @@ export class AuthController {
     this.logger.log('Déconnexion de l\'utilisateur');
     // Le logout sera géré côté client (suppression du token JWT)
     return { message: 'Déconnexion réussie. Le token a été supprimé côté client.' };
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    this.logger.log(`Demande de réinitialisation pour: ${forgotPasswordDto.email}`);
+    return this.authService.createResetToken(forgotPasswordDto.email);
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    this.logger.log(`Tentative de réinitialisation avec token: ${resetPasswordDto.token}`);
+    return this.authService.resetPassword(
+      resetPasswordDto.token,
+      resetPasswordDto.newPassword,
+    );
   }
 }

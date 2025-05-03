@@ -318,42 +318,69 @@ export class EmployeService {
     });
   }
   // ✅ Obtenir les heures de travail et les heures supplémentaires sur une période
-  async getHeuresTravailSurPeriode(employeId: string, startDate: Date, endDate: Date) {
-    const pointages = await this.prisma.pointage.findMany({
-      where: {
-        employeId,
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
+async getHeuresTravailSurPeriode(employeId: string, startDate: Date, endDate: Date) {
+  // Get all pointages for the employee in the given period
+  const pointages = await this.prisma.pointage.findMany({
+    where: {
+      employeId,
+      date: {
+        gte: startDate,
+        lte: endDate,
       },
-    });
+    },
+    orderBy: {
+      date: 'asc',
+    },
+  });
 
-    let heuresTravail = 0;
-    let heuresSupp = 0;
+  let heuresTravail = 0;
+  let heuresSupp = 0;
 
-    pointages.forEach((pointage) => {
-      if (pointage.heureDepart && pointage.heureArrivee) {
-        const heures = (pointage.heureDepart.getTime() - pointage.heureArrivee.getTime()) / (1000 * 60 * 60);
-        heuresTravail += heures;
+  // Group pointages by date
+  const pointagesByDate: Record<string, {entree?: Date, sortie?: Date}> = {};
 
-        if (heures > 8) {
-          heuresSupp += heures - 8;
-        }
+  pointages.forEach((pointage) => {
+    const dateKey = pointage.date.toISOString().split('T')[0];
+    if (!pointagesByDate[dateKey]) {
+      pointagesByDate[dateKey] = {};
+    }
+    
+    if (pointage.type === 'ENTREE') {
+      pointagesByDate[dateKey].entree = pointage.heure;
+    } else if (pointage.type === 'SORTIE') {
+      pointagesByDate[dateKey].sortie = pointage.heure;
+    }
+  });
+
+  // Calculate working hours for each day
+  for (const dateKey in pointagesByDate) {
+    const { entree, sortie } = pointagesByDate[dateKey];
+    
+    if (entree && sortie) {
+      // Calculate hours worked (in hours)
+      const heures = (sortie.getTime() - entree.getTime()) / (1000 * 60 * 60);
+      heuresTravail += heures;
+
+      // Calculate overtime (anything over 8 hours)
+      if (heures > 8) {
+        heuresSupp += heures - 8;
       }
-    });
+    }
+  }
 
-    // Mise à jour des heures de travail et des heures supplémentaires de l'employé
-    await this.prisma.employe.update({
-      where: { id: employeId },
-      data: {
-        heuresTravail: heuresTravail,
-        heuresSupp: heuresSupp,
-      },
-    });
+  // Update employee's working hours and overtime
+  await this.prisma.employe.update({
+    where: { id: employeId },
+    data: {
+      heuresTravail: heuresTravail,
+      heuresSupp: heuresSupp,
+    },
+  });
 
-    return { heuresTravail, heuresSupp };
-  } 
+  return { heuresTravail, heuresSupp };
+} 
+
+
  // ✅ Obtenir l'historique des absences
   async getHistoriqueAbsences(employeId: string) {
     return this.prisma.demande.findMany({
