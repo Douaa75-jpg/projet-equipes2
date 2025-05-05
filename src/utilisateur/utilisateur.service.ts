@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUtilisateurDto } from './dto/create-utilisateur.dto';
 import { UpdateUtilisateurDto } from './dto/update-utilisateur.dto'; // Adapte le chemin selon ton projet
@@ -81,30 +81,15 @@ export class UtilisateursService {
   
     // Gestion des rôles
     if (utilisateur.role === 'EMPLOYE') {
-      const responsableId = createUtilisateurDto.responsableId;
-  
-      // Si aucun responsableId n'est fourni, l'utilisateur sera créé sans responsable
-      if (!responsableId) {
-        throw new Error('Veuillez spécifier un responsable pour l\'employé.');
-      }
-  
-      // Vérifier que le responsable est de type CHEF_EQUIPE
-      const responsable = await this.prisma.responsable.findUnique({
-        where: { id: responsableId },
-      });
-  
-      if (!responsable || responsable.typeResponsable !== 'CHEF_EQUIPE') {
-        throw new ForbiddenException('Le responsable assigné doit être un chef d\'équipe.');
-      }
-  
-      // Créer l'employé avec le responsable spécifié
+      // Créer simplement l'employé sans responsable pour l'instant
       await this.prisma.employe.create({
         data: {
           id: utilisateur.id,
-          responsableId, // Responsabilité assignée manuellement
+          responsableId: createUtilisateurDto.responsableId || null,// responsableId n'est pas nécessaire ici
         },
       });
-    } else if (utilisateur.role === 'RESPONSABLE') {
+    }
+     else if (utilisateur.role === 'RESPONSABLE') {
       const responsableExistant = await this.prisma.responsable.findUnique({
         where: { id: utilisateur.id },
       });
@@ -156,23 +141,22 @@ export class UtilisateursService {
 @ApiResponse({ status: 200, description: 'Liste des employés récupérée avec succès.' })
 async findMany() {
   return this.prisma.employe.findMany({
-    select: {
-      id: true,
+    include: {
       utilisateur: {
         select: {
           id: true,
           nom: true,
           prenom: true,
           email: true,
-          matricule: true, // Ajout du matricule
+          matricule: true,
           datedenaissance: true,
         },
       },
       responsable: {
-        select: {
-          id: true,
+        include: {
           utilisateur: {
             select: {
+              id: true,
               nom: true,
               prenom: true,
               matricule: true,
@@ -183,8 +167,6 @@ async findMany() {
     },
   });
 }
-
-
 
 
    // Mettre à jour un utilisateur
@@ -289,14 +271,22 @@ async remove(id: string) {
           id: true,
           nom: true,
           prenom: true,
-          matricule: true,
           email: true,
+          matricule: true,
+          datedenaissance: true,
         },
       },
     },
   });
 
-  return chefs.map((r) => r.utilisateur);
+  return chefs.map(chef => ({
+    id: chef.utilisateur.id,
+    nom: chef.utilisateur.nom,
+    prenom: chef.utilisateur.prenom,
+    email: chef.utilisateur.email,
+    matricule: chef.utilisateur.matricule,
+    datedenaissance: chef.utilisateur.datedenaissance,
+  }));
 }
 
 
@@ -332,6 +322,38 @@ async countEmployesParChefEquipe() {
   }));
 }
 
+// Ajoutez cette méthode à votre service Utilisateur
+async finaliserInscription(token: string, motDePasse: string) {
+  // 1. Vérifier que le token et le mot de passe sont fournis
+  if (!token || !motDePasse) {
+    throw new BadRequestException('Token et mot de passe sont requis');
+  }
 
+  // 2. Rechercher l'utilisateur avec le token valide
+  const utilisateur = await this.prisma.utilisateur.findFirst({
+    where: {
+      registrationToken: token,
+      tokenExpiresAt: { gt: new Date() }, // Token non expiré
+      status: 'APPROUVE', // Utilisateur approuvé
+    },
+  });
 
+  if (!utilisateur) {
+    throw new NotFoundException('Token invalide ou expiré');
+  }
+
+  // 3. Hacher le nouveau mot de passe
+  const hashedPassword = await bcrypt.hash(motDePasse, 10);
+
+  // 4. Mettre à jour l'utilisateur
+  return this.prisma.utilisateur.update({
+    where: { id: utilisateur.id },
+    data: {
+      motDePasse: hashedPassword,
+      registrationToken: null,
+      tokenExpiresAt: null,
+      isActive: true,
+    },
+  });
+}
 }

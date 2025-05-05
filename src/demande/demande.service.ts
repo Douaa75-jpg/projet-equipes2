@@ -409,4 +409,36 @@ export class DemandeService {
       orderBy: { dateDebut: 'asc' }
     });
   }
+
+
+  
+  async getUpcomingLeaves() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Met à 00:00:00 local
+  
+    const demandes = await this.prisma.demande.findMany({
+      where: {
+        type: 'CONGE', // pour éviter dépendance sur l'import si enum pas correctement utilisé
+        dateDebut: {
+          gt: today // Prisma accepte Date directement, pas besoin de toISOString
+        },
+        statut: 'APPROUVEE'
+      },
+      include: {
+        employe: {
+          include: {
+            utilisateur: true
+          }
+        }
+      },
+      orderBy: {
+        dateDebut: 'asc'
+      },
+      take: 10
+    });
+  
+    console.log('Upcoming leaves trouvées:', demandes.length);
+    return demandes;
+  }
+  
 }

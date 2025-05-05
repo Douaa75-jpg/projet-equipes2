@@ -14,6 +14,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { join } from 'path';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { ApprobationModule } from './approbation/approbation.module';
 @Module({
   imports: [
     MailerModule.forRoot({
@@ -55,6 +56,7 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
     AuthModule,
     TacheModule,
     NotificationModule,
+    ApprobationModule,
   ],
 })
 export class AppModule {}

@@ -1,4 +1,5 @@
 import { IsEmail,ValidateIf, IsString,IsNotEmpty, IsEnum , MinLength , IsUUID , IsOptional , IsDateString} from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export enum TypeResponsable {
   RH = 'RH',
@@ -8,6 +9,9 @@ export enum TypeResponsable {
 
 // Définir les rôles comme une énumération possible
 export class CreateUtilisateurDto {
+  @ApiProperty()
+  id: string;
+
   @IsString()
   nom: string;
 

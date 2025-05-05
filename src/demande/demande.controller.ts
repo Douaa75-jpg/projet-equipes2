@@ -92,4 +92,9 @@ async getTeamLeaveRequests(@Param('responsableId') responsableId: string) {
 async getUpcomingTeamLeaveRequests(@Param('responsableId') responsableId: string) {
   return this.demandeService.getUpcomingTeamLeaveRequests(responsableId);
 }
+
+@Get('conges/a-venir')
+async getUpcomingLeaves() {
+  return this.demandeService.getUpcomingLeaves();
+}
 }

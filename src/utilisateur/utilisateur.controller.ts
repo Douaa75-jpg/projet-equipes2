@@ -1,4 +1,4 @@
-import { Controller,UseGuards, Get, Post, Body, Param, Request, Put, Delete, Patch } from '@nestjs/common';
+import { Controller,BadRequestException, Get, Post, Body, Param, Request, Put, Delete, Patch } from '@nestjs/common';
 import { UtilisateursService } from './utilisateur.service';
 import { CreateUtilisateurDto } from './dto/create-utilisateur.dto';
 import { UpdateUtilisateurDto } from './dto/update-utilisateur.dto';
@@ -24,15 +24,6 @@ export class UtilisateursController {
   @Patch(':id/assigner-responsable')
   @ApiOperation({ summary: 'Assigner un responsable (chef d\'équipe) à un employé' })
   @ApiResponse({ status: 200, description: 'Responsable assigné avec succès' })
-  @ApiBody({
-    description: 'Assignation d\'un responsable à un employé',
-    type: Object,
-    schema: {
-      example: {
-        responsableId: 'uuid-du-responsable',
-      },
-    },
-  })
   async assignerResponsable(
     @Param('id') id: string,
     @Body() responsableIdDto: { responsableId: string }
@@ -44,12 +35,23 @@ export class UtilisateursController {
 
   // Récupérer tous les utilisateurs
   @Get('chefs-equipe')
-  @ApiOperation({ summary: 'Obtenir tous les utilisateurs' })
-  @ApiResponse({ status: 200, description: 'Liste des utilisateurs récupérée avec succès' })
-  async findAll(@Request() req) {
-    console.log('Utilisateur Authentifié:', req.user);
-    return this.utilisateursService.findChefsEquipe();
-  }
+@ApiOperation({ summary: 'Obtenir tous les chefs d\'équipe' })
+@ApiResponse({ 
+  status: 200, 
+  description: 'Liste des chefs d\'équipe récupérée avec succès',
+  type: [CreateUtilisateurDto]
+})
+async findChefsEquipe() {
+  const chefs = await this.utilisateursService.findChefsEquipe();
+  return chefs.map(chef => ({
+    id: chef.id,
+    nom: chef.nom,
+    prenom: chef.prenom,
+    email: chef.email,
+    matricule: chef.matricule,
+    datedenaissance: chef.datedenaissance
+  }));
+}
 
   // Récupérer un utilisateur par ID
   @Get()
@@ -96,5 +98,22 @@ export class UtilisateursController {
   }
 
   
-
+  @Post('finaliser-inscription')
+@ApiOperation({ summary: 'Finaliser l\'inscription après approbation' })
+@ApiBody({
+  description: 'Token et mot de passe pour finaliser l\'inscription',
+  type: Object,
+  schema: {
+    example: {
+      token: 'token-d-activation',
+      motDePasse: 'NouveauMotDePasse123!'
+    }
+  }
+})
+async finaliserInscription(@Body() body: { token: string; motDePasse: string }) {
+  if (!body.token || !body.motDePasse) {
+    throw new BadRequestException('Token et mot de passe sont requis');
+  }
+  return this.utilisateursService.finaliserInscription(body.token, body.motDePasse);
+}
 }

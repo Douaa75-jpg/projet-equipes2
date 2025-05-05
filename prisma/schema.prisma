@@ -8,23 +8,51 @@ datasource db {
 }
 
 model Utilisateur {
-  id                 String              @id @default(uuid())
-  nom                String
-  prenom             String
-  email              String              @unique
-  role               Role
-  motDePasse         String
-  datedenaissance    DateTime?           @db.Date
-  isActive           Boolean             @default(false)
-  matricule          String?             @db.VarChar(255)
-  registrationToken  String?             @db.VarChar(255)
-  tokenExpiresAt     DateTime?
-  resetPasswordToken String?
-  resetPasswordExpires DateTime?
-  status             String              @default("EN_ATTENTE") // AJOUT: EN_ATTENTE, APPROVED, REJECTED
-  administrateur     Administrateur?
-  employe            Employe?
-  responsable        Responsable?
+  id                    String              @id @default(uuid())
+  nom                   String
+  prenom                String
+  email                 String              @unique
+  role                  Role
+  motDePasse            String
+  datedenaissance       DateTime?           @db.Date
+  isActive              Boolean             @default(false)
+  matricule             String?             @db.VarChar(255)
+  registrationToken     String?             @db.VarChar(255)
+  tokenExpiresAt        DateTime?
+  resetPasswordToken    String?
+  resetPasswordExpires  DateTime?
+  status                StatutUtilisateur   @default(EN_ATTENTE)
+  administrateur        Administrateur?
+  employe               Employe?
+  responsable           Responsable?
+
+  approbationsRHEnvoyees ApprobationRH[]     @relation("ApprobationRHUtilisateur")  // demandes faites par ce user
+  approbationsRHReçues   ApprobationRH[]     @relation("ApprobationRHResponsable")  // demandes qu'il doit approuver
+}
+
+model ApprobationRH {
+  id               String             @id @default(uuid())
+  utilisateurId    String
+  responsableId    String
+  dateDemande      DateTime           @default(now())
+  dateApprobation  DateTime?
+  statut           StatutApprobation  @default(EN_ATTENTE)
+  commentaire      String?
+
+  utilisateur      Utilisateur        @relation("ApprobationRHUtilisateur", fields: [utilisateurId], references: [id])
+  responsable      Utilisateur        @relation("ApprobationRHResponsable", fields: [responsableId], references: [id])
+}
+
+enum StatutUtilisateur {
+  EN_ATTENTE
+  APPROUVE
+  REJETE
+}
+
+enum StatutApprobation {
+  EN_ATTENTE
+  APPROUVEE
+  REJETEE
 }
 
 model Employe {
