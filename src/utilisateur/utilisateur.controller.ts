@@ -19,6 +19,7 @@ export class UtilisateursController {
     return this.utilisateursService.create(createUtilisateurDto);
   }
 
+
   // Assigner un responsable (chef d'équipe) à un employé
   @Patch(':id/assigner-responsable')
   @ApiOperation({ summary: 'Assigner un responsable (chef d\'équipe) à un employé' })

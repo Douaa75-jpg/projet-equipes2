@@ -79,4 +79,17 @@ export class DemandeController {
       }, HttpStatus.BAD_REQUEST);
     }
   }
+
+  
+@Get('equipe/en-conge/:responsableId')
+async getTeamLeaveRequests(@Param('responsableId') responsableId: string) {
+  return this.demandeService.getTeamLeaveRequests(responsableId);
+}
+
+
+// Dans DemandeController
+@Get('equipe/conges-a-venir/:responsableId')
+async getUpcomingTeamLeaveRequests(@Param('responsableId') responsableId: string) {
+  return this.demandeService.getUpcomingTeamLeaveRequests(responsableId);
+}
 }

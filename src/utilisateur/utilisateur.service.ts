@@ -300,4 +300,38 @@ async remove(id: string) {
 }
 
 
+// Compter le nombre d'employés sous chaque chef d'équipe
+async countEmployesParChefEquipe() {
+  // Récupérer tous les chefs d'équipe
+  const chefsEquipe = await this.prisma.responsable.findMany({
+    where: { typeResponsable: 'CHEF_EQUIPE' },
+    include: {
+      utilisateur: {
+        select: {
+          id: true,
+          nom: true,
+          prenom: true,
+          matricule: true,
+        },
+      },
+      employes: { // Relation "employes" définie dans le schéma Prisma
+        select: {
+          id: true,
+        },
+      },
+    },
+  });
+
+  // Formater les résultats pour inclure le nombre d'employés
+  return chefsEquipe.map((chef) => ({
+    id: chef.id,
+    nom: chef.utilisateur.nom,
+    prenom: chef.utilisateur.prenom,
+    matricule: chef.utilisateur.matricule,
+    nombreEmployes: chef.employes.length, // Nombre d'employés sous ce responsable
+  }));
+}
+
+
+
 }

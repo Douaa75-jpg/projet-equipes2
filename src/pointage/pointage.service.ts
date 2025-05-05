@@ -425,4 +425,12 @@ async calculerHeuresTravail(employeId: string, dateDebut: string, dateFin: strin
         : 'Non assigné'
     };
   }
+
+  async countEmployesSousChef(chefId: string): Promise<number> {
+    return this.prisma.employe.count({
+      where: {
+        responsableId: chefId,
+      },
+    });
+  }
 }

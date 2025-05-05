@@ -101,4 +101,11 @@ export class PointageController {
 async getEmployeInfo(@Param('employeId') employeId: string) {
   return this.pointageService.getEmployeInfo(employeId);
 }
+
+
+@Get(':chefId/nombre-employes')
+  async getNombreEmployesSousResponsable(@Param('chefId') chefId: string) {
+    const count = await this.pointageService.countEmployesSousChef(chefId);
+    return { nombreEmployes: count };
+  }
 }
