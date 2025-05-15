@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Utilisateur" ADD COLUMN     "dateEmbauche" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

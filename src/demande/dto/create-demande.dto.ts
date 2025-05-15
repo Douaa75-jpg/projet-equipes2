@@ -4,7 +4,6 @@ import { StatutDemande } from '@prisma/client';
 
 export enum TypeDemande {
   CONGE = 'CONGE', // تغيير من 'congé' إلى 'CONGE'
-  ABSENCE = 'ABSENCE',
   AUTORISATION_SORTIE = 'AUTORISATION_SORTIE'
 }
 
@@ -37,4 +36,5 @@ export class CreateDemandeDto {
   @IsOptional()
   @IsString()
   userId?: string;
+  
 }

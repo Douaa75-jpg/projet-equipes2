@@ -1,59 +1,38 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+// notifications.service.ts
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsGateway } from './notifications.gateway';
 
 @Injectable()
 export class NotificationService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsGateway: NotificationsGateway
+  ) {}
 
-  async createForEmploye(employeId: string, message: string) {
-    return this.prisma.notification.create({
+  async createAndSendNotification(data: {
+    message: string;
+    userId?: string;
+    responsableId?: string;
+    type?: string;
+  }) {
+    const notification = await this.prisma.notification.create({
       data: {
-        message,
-        employeId,
+        message: data.message,
+        employeId: data.userId,
+        responsableId: data.responsableId,
+        type: data.type,
       },
     });
-  }
 
-  async createForResponsable(responsableId: string, message: string) {
-    return this.prisma.notification.create({
-      data: {
-        message,
-        responsableId,
-      },
-    });
-  }
+    // إرسال الإشعار عبر WebSocket
+    if (data.userId) {
+      this.notificationsGateway.sendNotificationToUser(data.userId, notification);
+    }
+    if (data.responsableId) {
+      this.notificationsGateway.sendNotificationToUser(data.responsableId, notification);
+    }
 
-  async markAsRead(notificationId: string) {
-    const notification = await this.prisma.notification.findUnique({
-      where: { id: notificationId },
-    });
-
-    if (!notification) throw new NotFoundException('Notification introuvable');
-
-    return this.prisma.notification.update({
-      where: { id: notificationId },
-      data: { lu: true },
-    });
-  }
-
-  async getForEmploye(employeId: string) {
-    return this.prisma.notification.findMany({
-      where: { employeId },
-      orderBy: { dateEnvoi: 'desc' },
-    });
-  }
-
-  async getForResponsable(responsableId: string) {
-    return this.prisma.notification.findMany({
-      where: { responsableId },
-      orderBy: { dateEnvoi: 'desc' },
-    });
-  }
-
-  async delete(notificationId: string) {
-    return this.prisma.notification.delete({
-      where: { id: notificationId },
-    });
+    return notification;
   }
 }

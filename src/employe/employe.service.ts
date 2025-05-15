@@ -431,5 +431,63 @@ async findByResponsable(responsableId: string) {
   });
 }
 
+ 
+// ✅ Calculate and update employee absences
+@ApiOperation({ summary: 'Calculer tous les jours d\'absence depuis la date d\'embauche' })
+@ApiResponse({ status: 200, description: 'Tous les absences ont été calculés et mis à jour avec succès.' })
+async calculerEtMettreAJourToutesLesAbsences(employeId: string): Promise<{ nbAbsences: number }> {
+  // 1. نجيب بيانات الموظف
+  const employe = await this.prisma.employe.findUnique({
+    where: { id: employeId },
+    include: {
+      utilisateur: {
+        select: { dateEmbauche: true }
+      }
+    }
+  });
 
+  if (!employe || !employe.utilisateur?.dateEmbauche) {
+    throw new NotFoundException('Employé ou date d\'embauche non trouvé');
+  }
+
+  const dateEmbauche = new Date(employe.utilisateur.dateEmbauche);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // نحدد تاريخ اليوم من غير وقت
+
+  let nbAbsences = 0;
+
+  // 2. نحضّرو تواريخ جميع الأيام بين تاريخ التعيين واليوم
+  for (let d = new Date(dateEmbauche); d <= today; d.setDate(d.getDate() + 1)) {
+    const jour = new Date(d);
+    jour.setHours(0, 0, 0, 0); // Normalize the time
+
+    // 3. نتجنبو الويكاند (اختياري، حسب سياستكم)
+    const isWeekend = jour.getDay() === 0 || jour.getDay() === 6; // الأحد = 0، السبت = 6
+    if (isWeekend) continue;
+
+    // 4. نشوفو إذا الموظف عمل نقطة دخول في النهار هذاك
+    const pointage = await this.prisma.pointage.findFirst({
+      where: {
+        employeId,
+        type: 'ENTREE',
+        date: {
+          gte: jour,
+          lt: new Date(jour.getTime() + 24 * 60 * 60 * 1000),
+        },
+      },
+    });
+
+    if (!pointage) {
+      nbAbsences++;
+    }
+  }
+
+  // 5. نحينو العدد في قاعدة البيانات
+  await this.prisma.employe.update({
+    where: { id: employeId },
+    data: { nbAbsences },
+  });
+
+  return { nbAbsences };
+}
 }

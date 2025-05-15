@@ -1,14 +1,27 @@
 import { Controller, HttpStatus,Get,HttpException, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { DemandeService } from './demande.service';
 import { CreateDemandeDto } from './dto/create-demande.dto';
+import { NotificationService } from '../notifications/notifications.service';
 
 @Controller('demande')
 export class DemandeController {
-  constructor(private readonly demandeService: DemandeService) {}
+  constructor(private readonly demandeService: DemandeService , private notificationService: NotificationService,
+   ) {}
 
   @Post()
-  create(@Body() createDemandeDto: CreateDemandeDto) {
-    return this.demandeService.create(createDemandeDto);
+  async create(@Body() createDemandeDto: CreateDemandeDto) {
+    try {
+      const demande = await this.demandeService.create(createDemandeDto);
+      return {
+        success: true,
+        data: demande
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message
+      };
+    }
   }
 
   @Get()
@@ -23,13 +36,20 @@ export class DemandeController {
 
  // dans votre contrôleur
  @Get(':id/solde')
- async getSolde(@Param('id') employeId: string) {
-   const result = await this.demandeService.getSoldeConges(employeId);
-   return {
-     success: true,
-     soldeConges: Number(result.soldeConges) // تأكد من التحويل لعدد
-   };
- }
+  async getSolde(@Param('id') employeId: string) {
+    try {
+      const result = await this.demandeService.getSoldeConges(employeId);
+      return {
+        success: true,
+        soldeConges: result.soldeConges
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message
+      };
+    }
+  }
 
   @Get(':id/historique')
   getHistorique(@Param('id') employeId: string) {
@@ -96,5 +116,21 @@ async getUpcomingTeamLeaveRequests(@Param('responsableId') responsableId: string
 @Get('conges/a-venir')
 async getUpcomingLeaves() {
   return this.demandeService.getUpcomingLeaves();
+}
+
+
+// في DemandeController
+@Get('jours-feries')
+async getJoursFeries(@Query('year') year: number) {
+  const holidays = [
+    { nom: "Nouvel An", date: new Date(year, 0, 1), estFerie: true },
+      { nom: "Fête de la Révolution", date: new Date(year, 0, 14), estFerie: true },
+      { nom: "Fête de l'Indépendance", date: new Date(year, 3, 9), estFerie: true },
+      { nom: "Fête du Travail", date: new Date(year, 4, 1), estFerie: true },
+      { nom: "Fête de la République", date: new Date(year, 6, 25), estFerie: true },
+      { nom: "Fête de la Femme", date: new Date(year, 7, 13), estFerie: true },
+      { nom: "Fête de l'Évacuation", date: new Date(year, 11, 18), estFerie: true },
+  ];
+  return holidays;
 }
 }

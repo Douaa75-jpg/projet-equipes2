@@ -1,12 +1,12 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDemandeDto } from './dto/create-demande.dto';
-import { NotificationGateway } from '../notifications/notifications.gateway';
 import { StatutDemande } from '@prisma/client';
-
+import { NotificationService } from '../notifications/notifications.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { getJoursFeries , estJourFerie } from '../demande/joursFeries';
 export enum TypeDemande {
   CONGE = 'CONGE',
-  ABSENCE = 'ABSENCE',
   AUTORISATION_SORTIE = 'AUTORISATION_SORTIE'
 }
 
@@ -16,7 +16,8 @@ export class DemandeService {
 
   constructor(
     private prisma: PrismaService,
-    private notificationGateway: NotificationGateway
+    private notificationService: NotificationService,
+    private notificationsGateway: NotificationsGateway
   ) {}
 
   private async initializeSoldeConges(employeId: string): Promise<number> {
@@ -27,31 +28,73 @@ export class DemandeService {
     return updatedEmploye.soldeConges;
   }
 
-  private notifyUser(userId: string, message: string): void {
-    this.notificationGateway.sendNotification(userId, message);
+  private async notifyUser(userId: string, message: string, type?: string): Promise<void> {
+    await this.notificationService.createAndSendNotification({
+      message,
+      userId,
+      type
+    });
   }
 
   private async notifyRhAboutRequest(employeId: string, type: string): Promise<void> {
     const rh = await this.prisma.responsable.findFirst({
       where: { typeResponsable: 'RH' },
+      include: { utilisateur: true }
     });
+    
     const employe = await this.prisma.employe.findUnique({
       where: { id: employeId },
-      include: { utilisateur: true },
+      include: { utilisateur: true, responsable: true },
     });
 
     if (rh && employe) {
-      this.notifyUser(
-        rh.id,
-        `📌 Nouvelle demande de ${type} soumise par ${employe.utilisateur.nom}`
-      );
+      // Notifier le RH
+      await this.notificationService.createAndSendNotification({
+        message: `Nouvelle demande de ${type} de ${employe.utilisateur.nom} ${employe.utilisateur.prenom}`,
+        responsableId: rh.id,
+        type: 'DEMANDE'
+      });
+
+      // Notifier le responsable direct si différent du RH
+      if (employe.responsable && employe.responsable.id !== rh.id) {
+        await this.notificationService.createAndSendNotification({
+          message: `Nouvelle demande de ${type} de votre employé ${employe.utilisateur.nom}`,
+          responsableId: employe.responsable.id,
+          type: 'DEMANDE'
+        });
+      }
     }
   }
 
   private async calculateLeaveDays(dateDebut: Date, dateFin?: Date | null): Promise<number> {
     if (!dateFin) return 1;
-    const diffTime = Math.abs(dateFin.getTime() - dateDebut.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+    const start = new Date(dateDebut);
+    start.setHours(0, 0, 0, 0);
+    
+    const end = new Date(dateFin);
+    end.setHours(0, 0, 0, 0);
+
+    // Obtenir les jours fériés pour l'année concernée
+    const joursFeries = getJoursFeries(start.getFullYear());
+
+    let workingDays = 0;
+    let currentDate = new Date(start);
+
+    while (currentDate <= end) {
+      const dayOfWeek = currentDate.getDay();
+      const isSunday = dayOfWeek === 0;
+      const isFerie = estJourFerie(currentDate, joursFeries);
+
+      if (!isSunday && !isFerie) {
+        workingDays++;
+      }
+
+      // Passer au jour suivant
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return workingDays;
   }
 
   private async updateSoldeConges(employeId: string, days: number, operation: 'add' | 'subtract') {
@@ -86,6 +129,10 @@ export class DemandeService {
         data: { soldeConges: newSolde }
     });
 }
+
+
+
+
 
   async create(createDemandeDto: CreateDemandeDto) {
     const employe = await this.prisma.employe.findUnique({
@@ -144,9 +191,18 @@ export class DemandeService {
       }
     });
 
-    await this.notifyRhAboutRequest(employe.id, createDemandeDto.type);
-    return demande;
-  }
+   // Notifier l'employé
+   await this.notifyUser(
+    employe.id,
+    `Votre demande de ${createDemandeDto.type} a été soumise avec succès`,
+    'DEMANDE_SOUMISE'
+  );
+
+  // Notifier les responsables
+  await this.notifyRhAboutRequest(employe.id, createDemandeDto.type);
+
+  return demande;
+}
 
   async approve(id: string, userId: string) {
     const rh = await this.prisma.responsable.findFirst({
@@ -160,6 +216,7 @@ export class DemandeService {
     const demande = await this.prisma.demande.update({
       where: { id },
       data: { statut: StatutDemande.APPROUVEE },
+      include: { employe: true }
     });
 
     this.notifyUser(demande.employeId, `Votre demande a été approuvée !`);
@@ -225,21 +282,21 @@ export class DemandeService {
 
   async getSoldeConges(employeId: string) {
     let employe = await this.prisma.employe.findUnique({
-      where: { id: employeId }
+        where: { id: employeId }
     });
     
-    if (!employe) {
-      throw new NotFoundException("Employé non trouvé");
-    }
+    if (!employe) throw new NotFoundException("Employé non trouvé");
 
-    // Initialiser le solde si nécessaire
+    // Initialisation automatique si solde null/undefined/0
     if (employe.soldeConges === null || employe.soldeConges === undefined || employe.soldeConges === 0) {
-      const newSolde = await this.initializeSoldeConges(employeId);
-      return { soldeConges: newSolde };
+        employe = await this.prisma.employe.update({
+            where: { id: employeId },
+            data: { soldeConges: this.DEFAULT_ANNUAL_LEAVE }
+        });
     }
 
     return { soldeConges: employe.soldeConges };
-  }
+}
 
   async getLeaveHistory(employeId: string) {
     return this.prisma.demande.findMany({
@@ -440,5 +497,5 @@ export class DemandeService {
     console.log('Upcoming leaves trouvées:', demandes.length);
     return demandes;
   }
-  
+
 }

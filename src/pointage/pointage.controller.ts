@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { PointageService } from './pointage.service';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam } from '@nestjs/swagger';
+import moment from 'moment-timezone';
 
 @ApiTags('pointages')
 @Controller('pointages')
@@ -28,12 +29,16 @@ export class PointageController {
   }
 
   @Get('historique/:employeId')
-  @ApiOperation({ summary: 'Obtenir historique des pointages pour un employé' })
   async getHistorique(
     @Param('employeId') employeId: string,
     @Query('date') date: string
   ) {
-    return this.pointageService.getHistorique(employeId, date);
+    try {
+      const historique = await this.pointageService.getHistorique(employeId, date);
+      return historique || []; // Retourne une liste vide si historique est null/undefined
+    } catch (e) {
+      return []; // Retourne une liste vide en cas d'erreur
+    }
   }
 
   @Get('heures-equipe/:chefId')
@@ -107,5 +112,59 @@ async getEmployeInfo(@Param('employeId') employeId: string) {
   async getNombreEmployesSousResponsable(@Param('chefId') chefId: string) {
     const count = await this.pointageService.countEmployesSousChef(chefId);
     return { nombreEmployes: count };
+  }
+
+
+
+  // Dans pointage.controller.ts
+
+@Get('weekly-hours-chart/:employeId')
+@ApiOperation({ summary: 'Données pour le graphique des heures hebdomadaires' })
+async getWeeklyHoursChart(
+  @Param('employeId') employeId: string,
+  @Query('dateDebut') dateDebut: string
+) {
+  return this.pointageService.getWeeklyHoursChartData(employeId, dateDebut);
+}
+
+
+@Get('attendance-distribution/:employeId')
+@ApiOperation({ summary: 'Répartition des états de présence' })
+async getAttendanceDistribution(
+  @Param('employeId') employeId: string,
+  @Query('dateDebut') dateDebut: string,
+  @Query('dateFin') dateFin: string
+) {
+  return this.pointageService.getAttendanceDistribution(employeId, dateDebut, dateFin);
+}
+
+
+// Nouveaux endpoints
+@Get('presences-aujourdhui/:employeId')
+  @ApiOperation({ summary: 'Nombre de présences aujourd\'hui pour un employé spécifique' })
+  @ApiParam({ name: 'employeId', description: 'ID de l\'employé' })
+  async getPresenceEmployeAujourdhui(@Param('employeId') employeId: string) {
+    return {
+      count: await this.pointageService.getNombreEmployesPresentAujourdhui(employeId),
+      date: moment().tz('Africa/Tunis').format('YYYY-MM-DD')
+    };
+  }
+
+  @Get('presences-aujourdhui')
+  @ApiOperation({ summary: 'Nombre total de présences aujourd\'hui' })
+  async getPresencesAujourdhui() {
+    return {
+      count: await this.pointageService.getNombreEmployesPresentAujourdhui(),
+      date: moment().tz('Africa/Tunis').format('YYYY-MM-DD')
+    };
+  }
+
+  @Get('presence-weekday/all')
+  @ApiOperation({ summary: 'Taux de présence par jour de la semaine pour tous les employés' })
+  async getPresenceByWeekdayForAll(
+    @Query('dateDebut') dateDebut: string,
+    @Query('dateFin') dateFin: string
+  ) {
+    return this.pointageService.getPresenceByWeekdayForAllEmployees(dateDebut, dateFin);
   }
 }

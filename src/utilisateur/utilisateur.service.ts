@@ -19,7 +19,7 @@ export class UtilisateursService {
       where: { email },
     });
   }
-  
+  private readonly DEFAULT_ANNUAL_LEAVE = 30;
 
   async create(createUtilisateurDto: CreateUtilisateurDto) {
     console.log(createUtilisateurDto.email);
@@ -58,6 +58,12 @@ export class UtilisateursService {
     const SALT_ROUNDS = 10;
     const hashedPassword = await bcrypt.hash(createUtilisateurDto.motDePasse, SALT_ROUNDS);
   
+    // Déterminer la date d'embauche
+  const dateEmbauche = createUtilisateurDto.dateEmbauche 
+  ? new Date(createUtilisateurDto.dateEmbauche) 
+  : new Date(); // Date courante si non fournie
+
+
     // Créer l'utilisateur
     const { nom, prenom, email, role, datedenaissance, matricule } = createUtilisateurDto;
     // Vérifier et convertir la date si nécessaire
@@ -76,6 +82,7 @@ export class UtilisateursService {
         datedenaissance: formattedDate,  // <-- ici, mettre la bonne casse
         motDePasse: hashedPassword,
         role,
+        dateEmbauche,
       },
     });
   
@@ -86,6 +93,7 @@ export class UtilisateursService {
         data: {
           id: utilisateur.id,
           responsableId: createUtilisateurDto.responsableId || null,// responsableId n'est pas nécessaire ici
+          soldeConges: this.DEFAULT_ANNUAL_LEAVE
         },
       });
     }

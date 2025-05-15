@@ -16,7 +16,8 @@ model Utilisateur {
   motDePasse            String
   datedenaissance       DateTime?           @db.Date
   isActive              Boolean             @default(false)
-  matricule             String?             @db.VarChar(255)
+  matricule             String?             @unique @db.VarChar(255)
+  dateEmbauche          DateTime            @default(now())
   registrationToken     String?             @db.VarChar(255)
   tokenExpiresAt        DateTime?
   resetPasswordToken    String?
@@ -28,7 +29,23 @@ model Utilisateur {
 
   approbationsRHEnvoyees ApprobationRH[]     @relation("ApprobationRHUtilisateur")  // demandes faites par ce user
   approbationsRHReçues   ApprobationRH[]     @relation("ApprobationRHResponsable")  // demandes qu'il doit approuver
+  pointeuseId Int? @unique
+   records                Record[]    
 }
+
+model Record {
+  id             Int       @id @default(autoincrement())
+  utilisateurId  String
+  time           DateTime
+  action         Int
+
+  utilisateur    Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  @@index([utilisateurId])
+  @@index([time])
+}
+
+
 
 model ApprobationRH {
   id               String             @id @default(uuid())
@@ -63,10 +80,11 @@ model Employe {
   soldeConges   Int            @default(0)
   demandes      Demande[]
   utilisateur   Utilisateur    @relation(fields: [id], references: [id])
-  responsable      Responsable?     @relation("EmployeResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
+  responsable   Responsable?     @relation("EmployeResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
   notifications Notification[]
   pointages     Pointage[]
   taches        Tache[]
+  nbAbsences    Int      @default(0)
 }
 
 model Tache {

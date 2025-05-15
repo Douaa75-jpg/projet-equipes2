@@ -2,7 +2,6 @@ import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import { ApprobationService } from './approbation.service';
 import { CreateDemandeApprobationDto } from './dto/create-approbation.dto';
 import { ReponseApprobationDto } from './dto/reponse-approbation.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '../auth/role.enum';

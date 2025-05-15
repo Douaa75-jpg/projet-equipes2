@@ -85,14 +85,6 @@ export class EmployeController {
     return this.employeService.getHeuresTravailSurPeriode(employeId, start, end);
   }
 
-  // ✅ Obtenir l'historique des absences d'un employé (congés approuvés)
-  @Get(':employeId/historique-absences')
-  @ApiOperation({ summary: 'Obtenir l\'historique des absences d\'un employé' })
-  @ApiResponse({ status: 200, description: 'Historique des absences récupéré avec succès.' })
-  async getHistoriqueAbsences(@Param('employeId') employeId: string) {
-    return this.employeService.getHistoriqueAbsences(employeId);
-  }
-
   // ✅ Obtenir les notifications d'un employé
   @Get(':employeId/notifications')
   @ApiOperation({ summary: 'Obtenir les notifications d\'un employé' })
@@ -138,4 +130,20 @@ export class EmployeController {
   }
   
 
-}
+
+    // ✅ Calculate employee absences
+  @Get(':id/calculate-absences')
+  @ApiOperation({ summary: 'Calculate and update employee absences' })
+  @ApiResponse({ status: 200, description: 'Employee absences calculated and updated successfully.', schema: { example: { nbAbsences: 4 } } })
+  async calculateAbsences(@Param('id') id: string) {
+    try {
+      const result = await this.employeService.calculerEtMettreAJourToutesLesAbsences(id);
+      return result; // 👈 يرجع { nbAbsences: X }
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to calculate absences: ' + error.message);
+    }
+  }
+  
+ }
+
+

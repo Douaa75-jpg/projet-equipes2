@@ -101,7 +101,7 @@ async calculerHeuresTravail(employeId: string, dateDebut: string, dateFin: strin
     });
   
     if (!employeExiste) {
-      throw new NotFoundException('Employé non trouvé');
+      return []; // Retourne une liste vide au lieu de throw
     }
   
     // Traitement de la date avec le fuseau horaire
@@ -433,4 +433,310 @@ async calculerHeuresTravail(employeId: string, dateDebut: string, dateFin: strin
       },
     });
   }
+
+
+  // Dans pointage.service.ts
+
+  async getWeeklyHoursChartData(employeId: string, dateDebut: string) {
+    const startDate = moment.tz(dateDebut, this.timezone).startOf('week'); // Lundi
+    const endDate = startDate.clone().endOf('week'); // Dimanche
+  
+    const days: string[] = [];
+    const hours: number[] = [];
+  
+    for (let day = startDate.clone(); day <= endDate; day.add(1, 'day')) {
+      const dayOfWeek = day.day(); // 0 = dimanche, 6 = samedi
+  
+      // Exclure samedi (6) et dimanche (0)
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        const dateStr = day.format('YYYY-MM-DD');
+        const { totalHeures } = await this.calculerHeuresTravail(employeId, dateStr, dateStr);
+  
+        days.push(day.format('dddd')); // Nom du jour (Lundi, Mardi...)
+        hours.push(Number(totalHeures.toFixed(2)));
+      }
+    }
+  
+    return {
+      labels: days,
+      datasets: [{
+        label: 'Heures travaillées',
+        data: hours,
+        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderWidth: 1
+      }]
+    };
+  }
+  
+
+
+// Dans pointage.service.ts
+
+
+
+
+
+
+
+
+
+
+
+
+async getAttendanceDistribution(employeId: string, dateDebut?: string, dateFin?: string) {
+  const employe = await this.prisma.employe.findUnique({
+    where: { id: employeId },
+    include: {
+      utilisateur: {
+        select: { dateEmbauche: true }
+      }
+    }
+  });
+
+  if (!employe || !employe.utilisateur?.dateEmbauche) {
+    throw new NotFoundException("Employé introuvable ou date d'embauche manquante.");
+  }
+
+  const hireDate = moment(employe.utilisateur.dateEmbauche).tz(this.timezone).startOf('day');
+  const startDate = moment.tz(dateDebut || hireDate, this.timezone).startOf('day');
+  const endDate = moment.tz(dateFin || moment(), this.timezone).endOf('day');
+
+  if (hireDate.isAfter(endDate)) {
+    return {
+      periode: {
+        startDate: startDate.format('YYYY-MM-DD'),
+        endDate: endDate.format('YYYY-MM-DD')
+      },
+      message: "L'employé n'était pas encore en poste durant cette période.",
+      labels: ['Présent', 'Retard', 'Absent'],
+      datasets: [{
+        data: [0, 0, 0],
+        backgroundColor: [
+          'rgba(75, 192, 192, 0.5)',
+          'rgba(255, 206, 86, 0.5)',
+          'rgba(255, 99, 132, 0.5)'
+        ],
+        borderColor: [
+          'rgba(75, 192, 192, 1)',
+          'rgba(255, 206, 86, 1)',
+          'rgba(255, 99, 132, 1)'
+        ],
+        borderWidth: 1
+      }],
+      rawData: {
+        present: 0,
+        retard: 0,
+        absent: 0,
+        joursOuvresTotal: 0
+      }
+    };
+  }
+
+  const adjustedStartDate = hireDate.isAfter(startDate) ? hireDate : startDate;
+
+  // Get all ENTREE pointages in a single query
+  const allPointages = await this.prisma.pointage.findMany({
+    where: {
+      employeId,
+      type: 'ENTREE',
+      date: {
+        gte: adjustedStartDate.toDate(),
+        lte: endDate.toDate()
+      }
+    },
+    orderBy: { date: 'asc' }
+  });
+
+  let present = 0;
+  let retard = 0;
+  let absent = 0;
+
+  for (let day = adjustedStartDate.clone(); day.isSameOrBefore(endDate); day.add(1, 'day')) {
+    // Skip weekends
+    if (day.day() === 0 || day.day() === 6) continue;
+
+    const pointagesJour = allPointages.filter(p => {
+      return moment(p.date).tz(this.timezone).isSame(day, 'day');
+    });
+
+    if (pointagesJour.length === 0) {
+      absent++;
+    } else {
+      // Take the first entry
+      const premiereEntree = pointagesJour[0];
+      const heureEntree = moment(premiereEntree.heure).tz(this.timezone);
+      const heureLimite = day.clone().set({ hour: 9, minute: 15 });
+
+      if (heureEntree.isAfter(heureLimite)) {
+        retard++;
+      } else {
+        present++;
+      }
+    }
+  }
+
+  const joursOuvresTotal = present + retard + absent;
+  const pourcentagePresent = joursOuvresTotal > 0 ? (present / joursOuvresTotal) * 100 : 0;
+  const pourcentageRetard = joursOuvresTotal > 0 ? (retard / joursOuvresTotal) * 100 : 0;
+  const pourcentageAbsent = joursOuvresTotal > 0 ? (absent / joursOuvresTotal) * 100 : 0;
+
+  return {
+    periode: {
+      startDate: adjustedStartDate.format('YYYY-MM-DD'),
+      endDate: endDate.format('YYYY-MM-DD')
+    },
+    labels: ['Présent', 'Retard', 'Absent'],
+    datasets: [{
+      data: [pourcentagePresent, pourcentageRetard, pourcentageAbsent],
+      backgroundColor: [
+        'rgba(75, 192, 192, 0.5)',
+        'rgba(255, 206, 86, 0.5)',
+        'rgba(255, 99, 132, 0.5)'
+      ],
+      borderColor: [
+        'rgba(75, 192, 192, 1)',
+        'rgba(255, 206, 86, 1)',
+        'rgba(255, 99, 132, 1)'
+      ],
+      borderWidth: 1
+    }],
+    rawData: {
+      present,
+      retard,
+      absent,
+      joursOuvresTotal
+    }
+  };
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Nouvelle méthode pour les présences
+async getNombreEmployesPresentAujourdhui(employeId?: string) {
+  const aujourdhui = moment().tz(this.timezone).startOf('day');
+  
+  // Si employeId est fourni, on vérifie juste pour cet employé
+  if (employeId) {
+    const pointages = await this.prisma.pointage.findMany({
+      where: {
+        employeId,
+        date: {
+          gte: aujourdhui.toDate(),
+          lte: aujourdhui.clone().endOf('day').toDate()
+        },
+        type: 'ENTREE'
+      }
+    });
+    return pointages.length > 0 ? 1 : 0;
+  }
+
+  // Sinon, on compte tous les employés présents
+  const employesPresents = await this.prisma.pointage.findMany({
+    where: {
+      date: {
+        gte: aujourdhui.toDate(),
+        lte: aujourdhui.clone().endOf('day').toDate()
+      },
+      type: 'ENTREE'
+    },
+    distinct: ['employeId']
+  });
+
+  return employesPresents.length;
+}
+
+
+
+
+async getPresenceByWeekdayForAllEmployees(dateDebut: string, dateFin: string) {
+  const startDate = moment.tz(dateDebut, this.timezone).startOf('day');
+  const endDate = moment.tz(dateFin, this.timezone).endOf('day');
+
+  // 1. Récupérer tous les employés et leurs pointages
+  const tousLesEmployes = await this.prisma.employe.findMany({
+    include: {
+      utilisateur: {
+        select: {
+          nom: true,
+          prenom: true
+        }
+      }
+    }
+  });
+  const nombreEmployes = tousLesEmployes.length;
+  // 2. Initialiser les stats par jour
+  const joursSemaine = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi' , 'Samedi'];
+  const stats = {
+    presence: Array(6).fill(0),    // Nombre de présences par jour
+    totalPossible: Array(6).fill(nombreEmployes) // Nombre total de jours ouvrables par jour
+  };
+
+  // 3. Pour chaque employé, analyser chaque jour de la période
+  for (const employe of tousLesEmployes) {
+    const pointages = await this.prisma.pointage.findMany({
+      where: {
+        employeId: employe.id,
+        date: { gte: startDate.toDate(), lte: endDate.toDate() }
+      },
+      orderBy: { heure: 'asc' }
+    });
+
+     // Créer un Set des jours où l'employé a pointé
+     const joursPresents = new Set(
+      pointages
+        .filter(p => p.type === 'ENTREE')
+        .map(p => moment(p.date).day() - 1) // Lundi=0, ..., Samedi=5
+    );
+
+    // Mettre à jour les stats pour chaque jour présent
+    joursPresents.forEach(jour => {
+      if (jour >= 0 && jour <= 5) {
+        stats.presence[jour]++;
+      }
+    });
+  }
+
+  // 4. Calculer les taux de présence globaux
+  const tauxPresence = joursSemaine.map((jour, index) => {
+    return stats.totalPossible[index] > 0 
+      ? Math.round((stats.presence[index] / stats.totalPossible[index]) * 100)
+      : 0;
+  });
+
+  return {
+    labels: joursSemaine,
+    datasets: [{
+      label: 'Taux de présence global',
+      data: tauxPresence,
+      backgroundColor: 'rgba(54, 162, 235, 0.5)',
+      borderColor: 'rgba(54, 162, 235, 1)',
+      borderWidth: 1
+    }],
+    rawData: {
+      presence: stats.presence,
+      totalPossible: stats.totalPossible
+    }
+  };
+}}

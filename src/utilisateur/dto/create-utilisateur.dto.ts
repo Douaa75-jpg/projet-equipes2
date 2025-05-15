@@ -47,6 +47,8 @@ export class CreateUtilisateurDto {
   @IsNotEmpty()
   typeResponsable?: TypeResponsable;
 
-
+  @IsOptional()
+  @IsDateString()
+  dateEmbauche?: string;
 
 }
