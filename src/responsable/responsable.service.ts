@@ -8,52 +8,7 @@ import * as bcrypt from 'bcrypt';
 export class ResponsableService {
   constructor(private prisma: PrismaService) {}
 
-  // Créer un responsable
-  async create(createResponsableDto: CreateResponsableDto) {
-    // Vérification de l'email existant
-    const existingUser = await this.prisma.utilisateur.findUnique({
-      where: { email: createResponsableDto.email },
-    });
 
-    if (existingUser) {
-      throw new BadRequestException('L\'email est déjà utilisé.');
-    }
-
-    // Vérifier si la date est dans le bon format et la convertir si nécessaire
-    if (createResponsableDto.dateDeNaissance) {
-      const dateDeNaissance = createResponsableDto.dateDeNaissance;
-      if (isNaN(new Date(dateDeNaissance).getTime())) {
-        throw new BadRequestException('La date de naissance doit être une date ISO valide.');
-      }
-    }
-
-
-    // Générer un sel et hacher le mot de passe
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(createResponsableDto.motDePasse, salt);
-
-    // Création du responsable avec l'utilisateur associé
-    return this.prisma.responsable.create({
-      data: {
-        typeResponsable: createResponsableDto.typeResponsable,
-        utilisateur: {
-          create: {
-            nom: createResponsableDto.nom,
-            prenom: createResponsableDto.prenom,
-            email: createResponsableDto.email,
-            role: 'RESPONSABLE', // Définir le rôle
-            motDePasse: hashedPassword, // Mot de passe sécurisé
-            matricule: createResponsableDto.matricule, // Ajout de matricule
-            datedenaissance: createResponsableDto.dateDeNaissance,
-          },
-        },
-      },
-      select: {
-        id: true,
-        typeResponsable: true,
-      },
-    });
-  }
 
 
    // Ajouter la méthode pour trouver un responsable par ID utilisateur

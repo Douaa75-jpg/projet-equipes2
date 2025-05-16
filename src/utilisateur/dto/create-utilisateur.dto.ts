@@ -51,4 +51,7 @@ export class CreateUtilisateurDto {
   @IsDateString()
   dateEmbauche?: string;
 
+  @IsString()
+@IsNotEmpty()
+entrepriseCode: string;
 }

@@ -9,12 +9,6 @@ import { UpdateResponsableDto } from './dto/update-responsable.dto';
 export class ResponsableController {
   constructor(private readonly responsableService: ResponsableService) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Créer un responsable' })
-  @ApiResponse({ status: 201, description: 'Le responsable a été créé.' })
-  async create(@Body() createResponsableDto: CreateResponsableDto) {
-    return this.responsableService.create(createResponsableDto);
-  }
 
   @Get()
   @ApiOperation({ summary: 'Obtenir tous les responsables' })

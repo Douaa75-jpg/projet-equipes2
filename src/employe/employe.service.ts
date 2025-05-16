@@ -11,56 +11,6 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 export class EmployeService {
   constructor(private prisma: PrismaService, private readonly responsableService: ResponsableService) {}
 
-  // ✅ Créer un nouvel employé
-  @ApiOperation({ summary: 'Créer un nouvel employé' })
-  @ApiResponse({ status: 201, description: 'Employé créé avec succès.' })
-  @ApiResponse({ status: 400, description: 'Email déjà utilisé.' })
-  async create(createEmployeDto: CreateEmployeDto) {
-    const existingUser = await this.prisma.utilisateur.findUnique({
-      where: { email: createEmployeDto.email },
-    });
-
-    if (existingUser) {
-      throw new BadRequestException('Cet email est déjà utilisé.');
-    }
-
-    const hashedPassword = await bcrypt.hash(createEmployeDto.motDePasse, 10);
-
-    const utilisateur = await this.prisma.utilisateur.create({
-      data: {
-        nom: createEmployeDto.nom,
-        prenom: createEmployeDto.prenom,
-        email: createEmployeDto.email,
-        motDePasse: hashedPassword,
-        role: 'EMPLOYE',
-        datedenaissance: createEmployeDto.dateDeNaissance ? new Date(createEmployeDto.dateDeNaissance) : null, 
-        matricule: createEmployeDto.matricule || null,
-      },
-    });
-
-    const employe = await this.prisma.employe.create({
-      data: {
-        id: utilisateur.id,
-        responsableId: createEmployeDto.responsableId || null,
-      },
-      select: {
-        id: true,
-        responsableId: true,
-        utilisateur: {
-          select: {
-            id: true,
-            nom: true,
-            prenom: true,
-            email: true,
-            matricule: true, // Ajout du matricule
-            datedenaissance: true,
-          },
-        },
-      },
-    });
-
-    return employe;
-  }
 
   // Trouver tous les employés
   @ApiOperation({ summary: 'Trouver tous les employés' })

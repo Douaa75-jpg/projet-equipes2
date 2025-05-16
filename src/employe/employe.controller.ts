@@ -15,14 +15,6 @@ export class EmployeController {
     private readonly prisma: PrismaService,
   ) {}
 
-  // Créer un nouvel employé
-  @Post()
-  @ApiOperation({ summary: 'Créer un nouvel employé' })
-  @ApiResponse({ status: 201, description: 'L\'employé a été créé avec succès.' })
-  @ApiResponse({ status: 400, description: 'Email déjà utilisé.' })
-  async create(@Body() createEmployeDto: CreateEmployeDto) {
-    return this.employeService.create(createEmployeDto);
-  }
 
   // ✅ Récupérer tous les employés
   @Get()

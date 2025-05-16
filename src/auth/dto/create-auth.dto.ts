@@ -12,7 +12,6 @@ export class CreateAuthDto {
   @Column()
   role: string;
 
-  @IsNotEmpty()
-  registrationCode: string;
+  
 
 }

@@ -23,6 +23,21 @@ export class UtilisateursService {
 
   async create(createUtilisateurDto: CreateUtilisateurDto) {
     console.log(createUtilisateurDto.email);
+
+
+    const entreprise = await this.prisma.entreprise.findUnique({
+      where: { code: createUtilisateurDto.entrepriseCode },
+    });
+    
+    if (!entreprise) {
+      throw new ForbiddenException('Code entreprise invalide. Seuls les employés de Zeta Box peuvent s\'inscrire.');
+    }
+    
+    if (entreprise.code !== process.env.ZETA_BOX_CODE) {
+      throw new ForbiddenException('Seuls les employés de Zeta Box peuvent s\'inscrire.');
+    }
+    
+
     const existingUser = await this.prisma.utilisateur.findUnique({
       where: { email: createUtilisateurDto.email },
     });
@@ -83,6 +98,7 @@ export class UtilisateursService {
         motDePasse: hashedPassword,
         role,
         dateEmbauche,
+        entrepriseId: entreprise.id, // Ajout de l'entreprise
       },
     });
   

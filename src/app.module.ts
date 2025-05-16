@@ -14,7 +14,6 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { join } from 'path';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
-import { ApprobationModule } from './approbation/approbation.module';
 import { RecordModule } from './record/record.module';
 @Module({
   imports: [
@@ -57,7 +56,6 @@ import { RecordModule } from './record/record.module';
     AuthModule,
     TacheModule,
     NotificationModule,
-    ApprobationModule,
     RecordModule,
   ],
 })

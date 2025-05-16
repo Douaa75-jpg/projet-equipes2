@@ -19,6 +19,7 @@ model Utilisateur {
   matricule             String?             @unique @db.VarChar(255)
   dateEmbauche          DateTime            @default(now())
   registrationToken     String?             @db.VarChar(255)
+  registrationCode      String?             @db.VarChar(255)
   tokenExpiresAt        DateTime?
   resetPasswordToken    String?
   resetPasswordExpires  DateTime?
@@ -26,12 +27,24 @@ model Utilisateur {
   administrateur        Administrateur?
   employe               Employe?
   responsable           Responsable?
+  entrepriseId  String
+  entreprise    Entreprise @relation(fields: [entrepriseId], references: [id])
 
   approbationsRHEnvoyees ApprobationRH[]     @relation("ApprobationRHUtilisateur")  // demandes faites par ce user
   approbationsRHReçues   ApprobationRH[]     @relation("ApprobationRHResponsable")  // demandes qu'il doit approuver
   pointeuseId Int? @unique
-   records                Record[]    
+   records                Record[]  
+   
 }
+model Entreprise {
+  id        String     @id @default(uuid())
+  nom       String
+  code      String     @unique
+  utilisateurs Utilisateur[]
+}
+
+
+
 
 model Record {
   id             Int       @id @default(autoincrement())
