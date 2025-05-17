@@ -169,18 +169,24 @@ async calculerHeuresTravail(employeId: string, dateDebut: string, dateFin: strin
           select: {
             nom: true,
             prenom: true,
+            email:true,
             matricule: true
           }
         },
-        heuresTravail: true
+        heuresTravail: true,
+        nbAbsences: true,    // Ajout de ce champ
+        soldeConges: true, 
+        heuresSupp:true
       }
     });
 
     return equipe.map(emp => ({
-      ...emp,
-      heuresTravailFormatted: this.formatHeures(emp.heuresTravail || 0)
-    }));
-  }
+    ...emp,
+    heuresTravailFormatted: this.formatHeures(emp.heuresTravail || 0),
+    nbAbsences: emp.nbAbsences || 0,       // Retourne 0 si null
+    soldeConges: emp.soldeConges || 0      // Retourne 0 si null
+  }));
+}
 
   private formatHeures(heures: number): string {
     return `${Math.floor(heures)}h ${Math.round((heures % 1) * 60)}min`;
@@ -193,7 +199,203 @@ async calculerHeuresTravail(employeId: string, dateDebut: string, dateFin: strin
     return this.prisma.employe.findMany();
   }
 
-  // في pointage.service.ts
+  async getHeuresTousEmployes(dateDebut?: string, dateFin?: string) {
+    // 1. جلب جميع الموظفين
+    const tousLesEmployes = await this.prisma.employe.findMany({
+      select: {
+        id: true,
+        utilisateur: {
+          select: {
+            nom: true,
+            prenom: true,
+            matricule: true,
+            email: true,
+            datedenaissance: true
+          }
+        }
+      }
+    });
+  
+    // 2. تحضير التواريخ
+    const debut = dateDebut 
+      ? moment.tz(dateDebut, this.timezone).startOf('day') 
+      : moment.tz(this.timezone).startOf('month');
+    
+    const fin = dateFin 
+      ? moment.tz(dateFin, this.timezone).endOf('day') 
+      : moment.tz(this.timezone).endOf('month');
+  
+    // 3. حساب الساعات لكل موظف
+    const resultats = await Promise.all(
+      tousLesEmployes.map(async (employe) => {
+        const pointages = await this.prisma.pointage.findMany({
+          where: {
+            employeId: employe.id,
+            date: { gte: debut.toDate(), lte: fin.toDate() }
+          },
+          orderBy: { heure: 'asc' },
+        });
+  
+        let totalHeures = 0;
+        let entreePrecedente: Date | null = null;
+  
+        pointages.forEach((pointage) => {
+          if (pointage.type === 'ENTREE') {
+            entreePrecedente = pointage.heure;
+          } else if (pointage.type === 'SORTIE' && entreePrecedente) {
+            const dureeHeures = moment(pointage.heure).diff(
+              moment(entreePrecedente),
+              'hours',
+              true
+            );
+            totalHeures += dureeHeures;
+            entreePrecedente = null;
+          }
+        });
+  
+        return {
+          employe: {
+            id: employe.id,
+            nom: employe.utilisateur.nom,
+            prenom: employe.utilisateur.prenom,
+            matricule: employe.utilisateur.matricule,
+            email: employe.utilisateur.email,
+            datedenaissance: employe.utilisateur.datedenaissance
+          },
+          totalHeures,
+          heuresFormatees: this.formatHeures(totalHeures)
+        };
+      })
+    );
+  
+    return {
+      periode: {
+        debut: debut.format('YYYY-MM-DD'),
+        fin: fin.format('YYYY-MM-DD')
+      },
+      employes: resultats.sort((a, b) => b.totalHeures - a.totalHeures) // ترتيب تنازلي حسب الساعات
+    };
+  }
+
+
+ async getHeuresTravailTousEmployesRH(options: {
+  dateDebut?: string;
+  dateFin?: string;
+  page?: number;
+  limit?: number;
+  employeId?: string; // Optionnel: filtrer par un employé spécifique
+}) {
+  // 1. Configuration des dates (par défaut: le mois en cours)
+  const debut = options.dateDebut 
+    ? moment.tz(options.dateDebut, this.timezone).startOf('day')
+    : moment.tz(this.timezone).startOf('month');
+  
+  const fin = options.dateFin 
+    ? moment.tz(options.dateFin, this.timezone).endOf('day')
+    : moment.tz(this.timezone).endOf('month');
+
+  // 2. Pagination
+  const page = options.page || 1;
+  const limit = options.limit || 20;
+  const skip = (page - 1) * limit;
+
+  // 3. Filtrer les employés si besoin
+  const whereEmploye: any = {};
+  if (options.employeId) {
+    whereEmploye.id = options.employeId;
+  }
+
+  // 4. Récupérer les employés avec pagination
+  const [employes, totalEmployes] = await Promise.all([
+    this.prisma.employe.findMany({
+      where: whereEmploye,
+      skip,
+      take: limit,
+      include: {
+        utilisateur: {
+          select: {
+            nom: true,
+            prenom: true,
+            matricule: true,
+            email: true
+          }
+        },
+        pointages: {
+          where: {
+            date: {
+              gte: debut.toDate(),
+              lte: fin.toDate()
+            }
+          },
+          orderBy: { heure: 'asc' }
+        }
+      }
+    }),
+    this.prisma.employe.count({ where: whereEmploye })
+  ]);
+
+  // 5. Calculer les heures pour chaque employé
+  const resultats = employes.map(employe => {
+    let totalHeures = 0;
+    const heuresParJour: Record<string, number> = {};
+    let entreePrecedente: Date | null = null;
+
+    // Traiter les pointages par ordre chronologique
+    employe.pointages.forEach(pointage => {
+      const dateJour = moment(pointage.date).format('YYYY-MM-DD');
+      
+      if (pointage.type === 'ENTREE') {
+        entreePrecedente = pointage.heure;
+      } else if (pointage.type === 'SORTIE' && entreePrecedente) {
+        const dureeHeures = moment(pointage.heure).diff(
+          moment(entreePrecedente),
+          'hours',
+          true
+        );
+        
+        // Ajouter au total général
+        totalHeures += dureeHeures;
+        
+        // Ajouter au journalier
+        heuresParJour[dateJour] = (heuresParJour[dateJour] || 0) + dureeHeures;
+        
+        entreePrecedente = null;
+      }
+    });
+
+    return {
+      employe: {
+        id: employe.id,
+        nom: employe.utilisateur.nom,
+        prenom: employe.utilisateur.prenom,
+        matricule: employe.utilisateur.matricule,
+        email: employe.utilisateur.email
+      },
+      totalHeures: parseFloat(totalHeures.toFixed(2)),
+      heuresParJour: Object.entries(heuresParJour).reduce((acc, [date, heures]) => {
+        acc[date] = parseFloat(heures.toFixed(2));
+        return acc;
+      }, {} as Record<string, number>),
+      heuresMoyennesParJour: Object.values(heuresParJour).length > 0
+        ? parseFloat((totalHeures / Object.values(heuresParJour).length).toFixed(2))
+        : 0
+    };
+  });
+
+  return {
+    periode: {
+      debut: debut.format('YYYY-MM-DD'),
+      fin: fin.format('YYYY-MM-DD')
+    },
+    employes: resultats,
+    pagination: {
+      total: totalEmployes,
+      page,
+      limit,
+      totalPages: Math.ceil(totalEmployes / limit)
+    }
+  };
+}
 
   async getHeuresTravailTousLesEmployes(chefId: string, dateDebut?: string, dateFin?: string) {
     const equipe = await this.prisma.employe.findMany({
@@ -739,4 +941,123 @@ async getPresenceByWeekdayForAllEmployees(dateDebut: string, dateFin: string) {
       totalPossible: stats.totalPossible
     }
   };
-}}
+}
+
+async getPresencesSousChefAujourdhui(chefId: string) {
+  const aujourdhui = moment().tz(this.timezone).startOf('day');
+  
+  // 1. Récupérer tous les employés sous ce chef
+  const employes = await this.prisma.employe.findMany({
+    where: { responsableId: chefId },
+    select: { id: true }
+  });
+
+  const totalEmployes = employes.length;
+  if (totalEmployes === 0) {
+    return {
+      date: aujourdhui.format('YYYY-MM-DD'),
+      count: 0,
+      total: 0,
+      percentage: 0
+    };
+  }
+
+  // 2. Compter les présents
+  const employesPresents = await this.prisma.pointage.findMany({
+    where: {
+      employeId: { in: employes.map(e => e.id) },
+      date: {
+        gte: aujourdhui.toDate(),
+        lte: aujourdhui.clone().endOf('day').toDate()
+      },
+      type: 'ENTREE'
+    },
+    distinct: ['employeId']
+  });
+
+  const count = employesPresents.length;
+  const percentage = Math.round((count / totalEmployes) * 100);
+
+  return {
+    date: aujourdhui.format('YYYY-MM-DD'),
+    count,
+    total: totalEmployes,
+    percentage,
+    status: percentage >= 90 ? 'Excellent' : 
+           percentage >= 70 ? 'Bon' : 
+           percentage >= 50 ? 'Moyen' : 'Faible'
+  };
+}
+
+
+async calculerHeuresSupplementairesEmploye(employeId: string) {
+  // Date de début (début du mois en cours)
+  const debut = moment().tz(this.timezone).startOf('month');
+  // Date de fin (aujourd'hui)
+  const fin = moment().tz(this.timezone).endOf('day');
+
+  // Récupérer les pointages de l'employé pour la période
+  const pointages = await this.prisma.pointage.findMany({
+    where: {
+      employeId,
+      date: {
+        gte: debut.toDate(),
+        lte: fin.toDate()
+      }
+    },
+    orderBy: { heure: 'asc' }
+  });
+
+  let heuresSupplementaires = 0;
+  let entreePrecedente: Date | null = null;
+  const heuresParJour: Record<string, number> = {};
+
+  for (const pointage of pointages) {
+    const dateJour = moment(pointage.date).format('YYYY-MM-DD');
+    
+    if (pointage.type === 'ENTREE') {
+      entreePrecedente = pointage.heure;
+    } else if (pointage.type === 'SORTIE' && entreePrecedente) {
+      const heureEntree = moment(entreePrecedente).tz(this.timezone);
+      const heureSortie = moment(pointage.heure).tz(this.timezone);
+      
+      const dureeHeures = heureSortie.diff(heureEntree, 'hours', true);
+      heuresParJour[dateJour] = (heuresParJour[dateJour] || 0) + dureeHeures;
+      
+      entreePrecedente = null;
+    }
+  }
+
+  // Calculer les heures supplémentaires (plus de 8h par jour)
+  for (const [date, heures] of Object.entries(heuresParJour)) {
+    if (heures > 8) {
+      heuresSupplementaires += heures - 8;
+    }
+  }
+
+  // Mettre à jour le champ heuresSupp dans la base de données
+  const employe = await this.prisma.employe.update({
+    where: { id: employeId },
+    data: { heuresSupp: parseFloat(heuresSupplementaires.toFixed(2)) },
+    select: {
+      id: true,
+      heuresSupp: true,
+      utilisateur: {
+        select: {
+          nom: true,
+          prenom: true
+        }
+      }
+    }
+  });
+
+  return {
+    employe: `${employe.utilisateur.prenom} ${employe.utilisateur.nom}`,
+    heuresSupplementaires: employe.heuresSupp,
+    periode: {
+      debut: debut.format('YYYY-MM-DD'),
+      fin: fin.format('YYYY-MM-DD')
+    }
+  };
+}
+}

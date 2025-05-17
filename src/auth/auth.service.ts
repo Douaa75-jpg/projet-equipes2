@@ -121,54 +121,54 @@ export class AuthService {
 
 
   async createResetToken(email: string): Promise<{ message: string }> {
-    this.logger.debug(`Tentative de réinitialisation pour: ${email}`);
-    
     const user = await this.prisma.utilisateur.findUnique({ where: { email } });
-    
     if (!user) {
-      this.logger.warn(`Email non trouvé: ${email}`);
-      // Ne pas révéler que l'email n'existe pas pour des raisons de sécurité
       return { message: 'Si cet email existe, un lien de réinitialisation a été envoyé' };
     }
 
+    // Vérifier si un token valide existe déjà
+    if (user.resetPasswordToken ) {
+      return { message: 'Un lien de réinitialisation a déjà été envoyé à cet email' };
+    }
+
+    const token = uuidv4();
+    const expires = addHours(new Date(), 1);
+
+    await this.prisma.utilisateur.update({
+      where: { email },
+      data: {
+        resetPasswordToken: token,
+        resetPasswordExpires: expires,
+      },
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetUrl = `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
+
     try {
-      const token = uuidv4();
-      const expires = addHours(new Date(), 1);
-
-      await this.prisma.utilisateur.update({
-        where: { email },
-        data: { 
-          resetPasswordToken: token,
-          resetPasswordExpires: expires,
-        },
-      });
-
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      const resetUrl = `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
-      console.log('Lien de réinitialisation généré:', resetUrl);
-      
-      this.logger.debug(`Lien de réinitialisation généré: ${resetUrl}`);
-
       await this.mailerService.sendMail({
         to: email,
         subject: 'Réinitialisation de votre mot de passe',
         template: 'reset-password',
         context: {
           name: `${user.prenom} ${user.nom}`,
-          token: token, // Ajoutez cette ligne
-          resetUrl: resetUrl, // Gardez cette ligne si vous utilisez resetUrl dans le template
+          resetUrl,
+          expirationHours: 1,
         },
       });
-
-      this.logger.log(`Email envoyé avec succès à: ${email}`);
-      return { message: 'Un email de réinitialisation a été envoyé' };
     } catch (error) {
       this.logger.error(`Erreur lors de l'envoi de l'email: ${error.message}`);
-      throw new BadRequestException('Erreur lors de l\'envoi de l\'email de réinitialisation');
+      throw new BadRequestException("Erreur lors de l'envoi de l'email de réinitialisation");
     }
+
+    return { message: 'Si cet email existe, un lien de réinitialisation a été envoyé' };
   }
 
   async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    if (newPassword.length < 8) {
+      throw new BadRequestException('Le mot de passe doit contenir au moins 8 caractères');
+    }
+
     const user = await this.prisma.utilisateur.findFirst({
       where: {
         resetPasswordToken: token,
@@ -180,22 +180,35 @@ export class AuthService {
       throw new BadRequestException('Token invalide ou expiré');
     }
 
+    const isSamePassword = await bcrypt.compare(newPassword, user.motDePasse);
+    if (isSamePassword) {
+      throw new BadRequestException('Le nouveau mot de passe doit être différent de l\'ancien');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.prisma.utilisateur.update({
+      where: { id: user.id },
+      data: {
+        motDePasse: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+      },
+    });
+
+    // Envoyer un email de confirmation
     try {
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      
-      await this.prisma.utilisateur.update({
-        where: { id: user.id },
-        data: {
-          motDePasse: hashedPassword,
-          resetPasswordToken: null,
-          resetPasswordExpires: null,
+      await this.mailerService.sendMail({
+        to: user.email,
+        subject: 'Confirmation de réinitialisation de mot de passe',
+        template: 'password-reset-confirmation',
+        context: {
+          name: `${user.prenom} ${user.nom}`,
         },
       });
-
-      return { message: 'Mot de passe réinitialisé avec succès' };
     } catch (error) {
-      this.logger.error(`Erreur lors de la réinitialisation: ${error.message}`);
-      throw new BadRequestException('Erreur lors de la réinitialisation du mot de passe');
+      this.logger.error(`Erreur lors de l'envoi de l'email de confirmation: ${error.message}`);
     }
+
+    return { message: 'Mot de passe réinitialisé avec succès' };
   }
 }

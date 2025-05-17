@@ -55,6 +55,31 @@ export class PointageController {
   ) {
     return this.pointageService.getHeuresJournalieres(employeId, date);
   }
+
+  @Get('heures-tous-employes')
+@ApiOperation({ summary: 'الحصول على ساعات العمل لجميع الموظفين' })
+@ApiResponse({ status: 200, description: 'قائمة ساعات العمل لجميع الموظفين' })
+async getHeuresTousEmployes(
+  @Query('dateDebut') dateDebut?: string,
+  @Query('dateFin') dateFin?: string
+) {
+  return this.pointageService.getHeuresTousEmployes(dateDebut, dateFin);
+}
+
+
+@Get('rh/heures-travail')// Seuls RH et Admin peuvent accéder
+  async getHeuresTravailTousEmployesRH(
+    @Query('dateDebut') dateDebut?: string,
+    @Query('dateFin') dateFin?: string,
+    @Query('employeId') employeId?: string
+  ) {
+    return this.pointageService.getHeuresTravailTousEmployesRH({
+      dateDebut,
+      dateFin,
+      employeId
+    });
+  }
+
   @Get('heures-travail-equipe/:chefId')
   @ApiOperation({ summary: 'Rapport des heures travaillées pour tous les employés' })
   async getHeuresTravailTousLesEmployes(
@@ -166,5 +191,34 @@ async getAttendanceDistribution(
     @Query('dateFin') dateFin: string
   ) {
     return this.pointageService.getPresenceByWeekdayForAllEmployees(dateDebut, dateFin);
+  }
+
+
+  @Get('presences-sous-chef/:chefId/stats-jour')
+@ApiOperation({ 
+  summary: "Statistiques de présence aujourd'hui pour les employés d'un chef" 
+})
+async getPresencesSousChefStats(
+  @Param('chefId') chefId: string
+) {
+  return this.pointageService.getPresencesSousChefAujourdhui(chefId);
+}
+
+@Get('employe/:id')
+  @ApiOperation({ summary: 'Obtenir les heures supplémentaires pour un employé spécifique' })
+  @ApiParam({ name: 'id', description: 'ID de l\'employé' })
+  @ApiResponse({ status: 200, description: 'Heures supplémentaires de l\'employé' })
+  @ApiResponse({ status: 404, description: 'Employé non trouvé' })
+  async getHeuresSupplementairesEmploye(@Param('id') id: string) {
+    return this.pointageService.calculerHeuresSupplementairesEmploye(id);
+  }
+
+  @Post('calculer/:id')
+  @ApiOperation({ summary: 'Calculer les heures supplémentaires pour un employé spécifique' })
+  @ApiParam({ name: 'id', description: 'ID de l\'employé' })
+  @ApiResponse({ status: 200, description: 'Calcul des heures supplémentaires terminé' })
+  @ApiResponse({ status: 404, description: 'Employé non trouvé' })
+  async calculerHeuresSupplementairesEmploye(@Param('id') id: string) {
+    return this.pointageService.calculerHeuresSupplementairesEmploye(id);
   }
 }

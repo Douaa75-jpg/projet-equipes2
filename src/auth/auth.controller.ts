@@ -49,17 +49,25 @@ export class AuthController {
   }
 
   @Post('forgot-password')
-  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    this.logger.log(`Demande de réinitialisation pour: ${forgotPasswordDto.email}`);
-    return this.authService.createResetToken(forgotPasswordDto.email);
+async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+  if (!forgotPasswordDto.email) {
+    throw new BadRequestException('L\'email est requis');
   }
+  const result = await this.authService.createResetToken(forgotPasswordDto.email);
+  return { 
+    success: true,
+    message: result.message 
+  };
+}
 
   @Post('reset-password')
+  @ApiOperation({ summary: 'Réinitialisation du mot de passe' })
+  @ApiResponse({ status: 200, description: 'Mot de passe réinitialisé avec succès' })
+  @ApiResponse({ status: 400, description: 'Token invalide ou expiré' })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    this.logger.log(`Tentative de réinitialisation avec token: ${resetPasswordDto.token}`);
-    return this.authService.resetPassword(
-      resetPasswordDto.token,
-      resetPasswordDto.newPassword,
-    );
+    if (!resetPasswordDto.token || !resetPasswordDto.newPassword) {
+      throw new BadRequestException('Token et nouveau mot de passe sont requis');
+    }
+    return this.authService.resetPassword(resetPasswordDto.token, resetPasswordDto.newPassword);
   }
 }

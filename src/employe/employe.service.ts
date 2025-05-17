@@ -440,4 +440,5 @@ async calculerEtMettreAJourToutesLesAbsences(employeId: string): Promise<{ nbAbs
 
   return { nbAbsences };
 }
+
 }
