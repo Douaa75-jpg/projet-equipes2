@@ -199,203 +199,7 @@ async calculerHeuresTravail(employeId: string, dateDebut: string, dateFin: strin
     return this.prisma.employe.findMany();
   }
 
-  async getHeuresTousEmployes(dateDebut?: string, dateFin?: string) {
-    // 1. جلب جميع الموظفين
-    const tousLesEmployes = await this.prisma.employe.findMany({
-      select: {
-        id: true,
-        utilisateur: {
-          select: {
-            nom: true,
-            prenom: true,
-            matricule: true,
-            email: true,
-            datedenaissance: true
-          }
-        }
-      }
-    });
-  
-    // 2. تحضير التواريخ
-    const debut = dateDebut 
-      ? moment.tz(dateDebut, this.timezone).startOf('day') 
-      : moment.tz(this.timezone).startOf('month');
-    
-    const fin = dateFin 
-      ? moment.tz(dateFin, this.timezone).endOf('day') 
-      : moment.tz(this.timezone).endOf('month');
-  
-    // 3. حساب الساعات لكل موظف
-    const resultats = await Promise.all(
-      tousLesEmployes.map(async (employe) => {
-        const pointages = await this.prisma.pointage.findMany({
-          where: {
-            employeId: employe.id,
-            date: { gte: debut.toDate(), lte: fin.toDate() }
-          },
-          orderBy: { heure: 'asc' },
-        });
-  
-        let totalHeures = 0;
-        let entreePrecedente: Date | null = null;
-  
-        pointages.forEach((pointage) => {
-          if (pointage.type === 'ENTREE') {
-            entreePrecedente = pointage.heure;
-          } else if (pointage.type === 'SORTIE' && entreePrecedente) {
-            const dureeHeures = moment(pointage.heure).diff(
-              moment(entreePrecedente),
-              'hours',
-              true
-            );
-            totalHeures += dureeHeures;
-            entreePrecedente = null;
-          }
-        });
-  
-        return {
-          employe: {
-            id: employe.id,
-            nom: employe.utilisateur.nom,
-            prenom: employe.utilisateur.prenom,
-            matricule: employe.utilisateur.matricule,
-            email: employe.utilisateur.email,
-            datedenaissance: employe.utilisateur.datedenaissance
-          },
-          totalHeures,
-          heuresFormatees: this.formatHeures(totalHeures)
-        };
-      })
-    );
-  
-    return {
-      periode: {
-        debut: debut.format('YYYY-MM-DD'),
-        fin: fin.format('YYYY-MM-DD')
-      },
-      employes: resultats.sort((a, b) => b.totalHeures - a.totalHeures) // ترتيب تنازلي حسب الساعات
-    };
-  }
 
-
- async getHeuresTravailTousEmployesRH(options: {
-  dateDebut?: string;
-  dateFin?: string;
-  page?: number;
-  limit?: number;
-  employeId?: string; // Optionnel: filtrer par un employé spécifique
-}) {
-  // 1. Configuration des dates (par défaut: le mois en cours)
-  const debut = options.dateDebut 
-    ? moment.tz(options.dateDebut, this.timezone).startOf('day')
-    : moment.tz(this.timezone).startOf('month');
-  
-  const fin = options.dateFin 
-    ? moment.tz(options.dateFin, this.timezone).endOf('day')
-    : moment.tz(this.timezone).endOf('month');
-
-  // 2. Pagination
-  const page = options.page || 1;
-  const limit = options.limit || 20;
-  const skip = (page - 1) * limit;
-
-  // 3. Filtrer les employés si besoin
-  const whereEmploye: any = {};
-  if (options.employeId) {
-    whereEmploye.id = options.employeId;
-  }
-
-  // 4. Récupérer les employés avec pagination
-  const [employes, totalEmployes] = await Promise.all([
-    this.prisma.employe.findMany({
-      where: whereEmploye,
-      skip,
-      take: limit,
-      include: {
-        utilisateur: {
-          select: {
-            nom: true,
-            prenom: true,
-            matricule: true,
-            email: true
-          }
-        },
-        pointages: {
-          where: {
-            date: {
-              gte: debut.toDate(),
-              lte: fin.toDate()
-            }
-          },
-          orderBy: { heure: 'asc' }
-        }
-      }
-    }),
-    this.prisma.employe.count({ where: whereEmploye })
-  ]);
-
-  // 5. Calculer les heures pour chaque employé
-  const resultats = employes.map(employe => {
-    let totalHeures = 0;
-    const heuresParJour: Record<string, number> = {};
-    let entreePrecedente: Date | null = null;
-
-    // Traiter les pointages par ordre chronologique
-    employe.pointages.forEach(pointage => {
-      const dateJour = moment(pointage.date).format('YYYY-MM-DD');
-      
-      if (pointage.type === 'ENTREE') {
-        entreePrecedente = pointage.heure;
-      } else if (pointage.type === 'SORTIE' && entreePrecedente) {
-        const dureeHeures = moment(pointage.heure).diff(
-          moment(entreePrecedente),
-          'hours',
-          true
-        );
-        
-        // Ajouter au total général
-        totalHeures += dureeHeures;
-        
-        // Ajouter au journalier
-        heuresParJour[dateJour] = (heuresParJour[dateJour] || 0) + dureeHeures;
-        
-        entreePrecedente = null;
-      }
-    });
-
-    return {
-      employe: {
-        id: employe.id,
-        nom: employe.utilisateur.nom,
-        prenom: employe.utilisateur.prenom,
-        matricule: employe.utilisateur.matricule,
-        email: employe.utilisateur.email
-      },
-      totalHeures: parseFloat(totalHeures.toFixed(2)),
-      heuresParJour: Object.entries(heuresParJour).reduce((acc, [date, heures]) => {
-        acc[date] = parseFloat(heures.toFixed(2));
-        return acc;
-      }, {} as Record<string, number>),
-      heuresMoyennesParJour: Object.values(heuresParJour).length > 0
-        ? parseFloat((totalHeures / Object.values(heuresParJour).length).toFixed(2))
-        : 0
-    };
-  });
-
-  return {
-    periode: {
-      debut: debut.format('YYYY-MM-DD'),
-      fin: fin.format('YYYY-MM-DD')
-    },
-    employes: resultats,
-    pagination: {
-      total: totalEmployes,
-      page,
-      limit,
-      totalPages: Math.ceil(totalEmployes / limit)
-    }
-  };
-}
 
   async getHeuresTravailTousLesEmployes(chefId: string, dateDebut?: string, dateFin?: string) {
     const equipe = await this.prisma.employe.findMany({
@@ -475,6 +279,10 @@ async calculerHeuresTravail(employeId: string, dateDebut: string, dateFin: strin
       employes: resultats
     };
   }
+
+
+
+  //pour recupere l'historique de pointage pour  chef d'equipe
   async getHistoriqueEquipe(chefId: string, options: {
     dateDebut?: string;
     dateFin?: string;
@@ -583,6 +391,130 @@ async calculerHeuresTravail(employeId: string, dateDebut: string, dateFin: strin
       }
     };
   }
+
+
+//pour recupere l'historique de pointage pour rh
+  async getHistoriqueRH(options: {
+  dateDebut?: string;
+  dateFin?: string;
+  page?: number;
+  limit?: number;
+  type?: 'ENTREE' | 'SORTIE';
+  employeId?: string;
+  departementId?: string;
+  searchTerm?: string; // Nouveau: recherche par nom/prénom/matricule
+}) {
+  // 1. Configuration des dates (fuseau horaire Tunis)
+  const dateDebut = options.dateDebut
+    ? moment.tz(options.dateDebut, 'Africa/Tunis').startOf('day')
+    : moment.tz('Africa/Tunis').subtract(30, 'days').startOf('day');
+
+  const dateFin = options.dateFin
+    ? moment.tz(options.dateFin, 'Africa/Tunis').endOf('day')
+    : moment.tz('Africa/Tunis').endOf('day');
+
+  // 2. Configuration de la pagination
+  const page = options.page || 1;
+  const limit = options.limit || 25;
+  const skip = (page - 1) * limit;
+
+  // 3. Construction du filtre de base
+  const where: any = {
+    date: {
+      gte: dateDebut.toDate(),
+      lte: dateFin.toDate()
+    }
+  };
+
+  // 4. Filtres optionnels
+  if (options.type) {
+    where.type = options.type;
+  }
+
+  if (options.employeId) {
+    where.employeId = options.employeId;
+  }
+
+  if (options.departementId) {
+    where.employe = { departementId: options.departementId };
+  }
+
+  // 5. Filtre de recherche (nom, prénom ou matricule)
+  if (options.searchTerm) {
+    where.employe = {
+      ...where.employe,
+      utilisateur: {
+        OR: [
+          { nom: { contains: options.searchTerm, mode: 'insensitive' } },
+          { prenom: { contains: options.searchTerm, mode: 'insensitive' } },
+          { matricule: { contains: options.searchTerm, mode: 'insensitive' } }
+        ]
+      }
+    };
+  }
+
+  // 6. Récupération des données avec jointures
+  const [pointages, total] = await Promise.all([
+    this.prisma.pointage.findMany({
+      where,
+      orderBy: { heure: 'desc' },
+      skip,
+      take: limit,
+      include: {
+        employe: {
+          include: {
+            utilisateur: {
+              select: {
+                id: true,
+                nom: true,
+                prenom: true,
+                matricule: true,
+                email: true
+              }
+            },
+          }
+        }
+      }
+    }),
+    this.prisma.pointage.count({ where })
+  ]);
+
+  // 7. Formatage des résultats
+  const items = pointages.map(p => ({
+    id: p.id,
+    type: p.type,
+    typeLibelle: p.type === 'ENTREE' ? 'Entrée' : 'Sortie',
+    date: moment(p.date).tz('Africa/Tunis').format('YYYY-MM-DD'),
+    heure: moment(p.heure).tz('Africa/Tunis').format('HH:mm:ss'),
+    employe: {
+      id: p.employe.id,
+      nom: p.employe.utilisateur.nom,
+      prenom: p.employe.utilisateur.prenom,
+      matricule: p.employe.utilisateur.matricule,
+      email: p.employe.utilisateur.email,
+    },
+    rawDate: p.date // Pour le tri côté client
+  }));
+
+  // 8. Retour des résultats structurés
+  return {
+    items,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: page * limit < total,
+      hasPreviousPage: page > 1
+    },
+    periode: {
+      debut: dateDebut.format('YYYY-MM-DD'),
+      fin: dateFin.format('YYYY-MM-DD')
+    }
+  };
+}
+
+
 
 
   async getEmployeInfo(employeId: string) {

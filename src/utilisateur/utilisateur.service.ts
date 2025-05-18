@@ -165,7 +165,12 @@ export class UtilisateursService {
 @ApiResponse({ status: 200, description: 'Liste des employés récupérée avec succès.' })
 async findMany() {
   return this.prisma.employe.findMany({
-    include: {
+    select: {
+      id: true,
+      heuresSupp: true,  // تضمين heuresSupp
+      heuresTravail: true, // تضمين heuresTravail
+      soldeConges: true,
+      nbAbsences: true,
       utilisateur: {
         select: {
           id: true,
@@ -177,7 +182,7 @@ async findMany() {
         },
       },
       responsable: {
-        include: {
+        select: {
           utilisateur: {
             select: {
               id: true,
