@@ -1,12 +1,15 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, NotFoundException,Post, Body, Param, Query } from '@nestjs/common';
 import { PointageService } from './pointage.service';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam } from '@nestjs/swagger';
 import moment from 'moment-timezone';
+import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('pointages')
 @Controller('pointages')
 export class PointageController {
-  constructor(private readonly pointageService: PointageService) {}
+  constructor(private readonly pointageService: PointageService, 
+    private readonly prisma: PrismaService
+  ) {}
 
   @Post(':employeId')
   @ApiOperation({ summary: 'Enregistrer un pointage (entrée/sortie)' })
@@ -181,22 +184,29 @@ async getPresencesSousChefStats(
 }
 
 @Get('employe/:id')
-  @ApiOperation({ summary: 'Obtenir les heures supplémentaires pour un employé spécifique' })
-  @ApiParam({ name: 'id', description: 'ID de l\'employé' })
-  @ApiResponse({ status: 200, description: 'Heures supplémentaires de l\'employé' })
-  @ApiResponse({ status: 404, description: 'Employé non trouvé' })
-  async getHeuresSupplementairesEmploye(@Param('id') id: string) {
-    return this.pointageService.calculerHeuresSupplementairesEmploye(id);
+@ApiOperation({ summary: 'Obtenir les heures supplémentaires pour un employé spécifique (calcul en temps réel)' })
+@ApiParam({ name: 'id', description: 'ID de l\'employé' })
+@ApiResponse({ status: 200, description: 'Heures supplémentaires de l\'employé' })
+@ApiResponse({ status: 404, description: 'Employé non trouvé' })
+async getHeuresSupplementairesEmploye(@Param('id') id: string) {
+  const result = await this.pointageService.calculerHeuresSupplementairesEmploye(id, true);
+
+  // Get employee details including user information
+  const employe = await this.prisma.employe.findUnique({
+    where: { id },
+    include: { utilisateur: true }
+  });
+
+  if (!employe) {
+    throw new NotFoundException('Employé non trouvé');
   }
 
-  @Post('calculer/:id')
-  @ApiOperation({ summary: 'Calculer les heures supplémentaires pour un employé spécifique' })
-  @ApiParam({ name: 'id', description: 'ID de l\'employé' })
-  @ApiResponse({ status: 200, description: 'Calcul des heures supplémentaires terminé' })
-  @ApiResponse({ status: 404, description: 'Employé non trouvé' })
-  async calculerHeuresSupplementairesEmploye(@Param('id') id: string) {
-    return this.pointageService.calculerHeuresSupplementairesEmploye(id);
-  }
+  return {
+    employe: `${employe.utilisateur.prenom} ${employe.utilisateur.nom}`,
+    heuresSupplementaires: result.heuresSupplementaires,
+    periode: result.periode
+  };
+}
 
 
 

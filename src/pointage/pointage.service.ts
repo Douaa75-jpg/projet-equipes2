@@ -821,10 +821,10 @@ async getPresenceByWeekdayForAllEmployees(dateDebut: string, dateFin: string) {
   });
   const nombreEmployes = tousLesEmployes.length;
   // 2. Initialiser les stats par jour
-  const joursSemaine = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi' , 'Samedi'];
+  const joursSemaine = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi' ];
   const stats = {
-    presence: Array(6).fill(0),    // Nombre de présences par jour
-    totalPossible: Array(6).fill(nombreEmployes) // Nombre total de jours ouvrables par jour
+    presence: Array(5).fill(0),    // Nombre de présences par jour
+    totalPossible: Array(5).fill(nombreEmployes) // Nombre total de jours ouvrables par jour
   };
 
   // 3. Pour chaque employé, analyser chaque jour de la période
@@ -922,7 +922,7 @@ async getPresencesSousChefAujourdhui(chefId: string) {
 }
 
 
-async calculerHeuresSupplementairesEmploye(employeId: string) {
+async calculerHeuresSupplementairesEmploye(employeId: string, realTime: boolean = false) {
   // Date de début (début du mois en cours)
   const debut = moment().tz(this.timezone).startOf('month');
   // Date de fin (aujourd'hui)
@@ -967,7 +967,18 @@ async calculerHeuresSupplementairesEmploye(employeId: string) {
     }
   }
 
-  // Mettre à jour le champ heuresSupp dans la base de données
+  // Si en mode realTime, on retourne directement le calcul sans sauvegarder
+  if (realTime) {
+    return {
+      heuresSupplementaires: parseFloat(heuresSupplementaires.toFixed(2)),
+      periode: {
+        debut: debut.format('YYYY-MM-DD'),
+        fin: fin.format('YYYY-MM-DD')
+      }
+    };
+  }
+
+  // Sinon, on met à jour la base de données comme avant
   const employe = await this.prisma.employe.update({
     where: { id: employeId },
     data: { heuresSupp: parseFloat(heuresSupplementaires.toFixed(2)) },
