@@ -351,38 +351,4 @@ async countEmployesParChefEquipe() {
   }));
 }
 
-// Ajoutez cette méthode à votre service Utilisateur
-async finaliserInscription(token: string, motDePasse: string) {
-  // 1. Vérifier que le token et le mot de passe sont fournis
-  if (!token || !motDePasse) {
-    throw new BadRequestException('Token et mot de passe sont requis');
-  }
-
-  // 2. Rechercher l'utilisateur avec le token valide
-  const utilisateur = await this.prisma.utilisateur.findFirst({
-    where: {
-      registrationToken: token,
-      tokenExpiresAt: { gt: new Date() }, // Token non expiré
-      status: 'APPROUVE', // Utilisateur approuvé
-    },
-  });
-
-  if (!utilisateur) {
-    throw new NotFoundException('Token invalide ou expiré');
-  }
-
-  // 3. Hacher le nouveau mot de passe
-  const hashedPassword = await bcrypt.hash(motDePasse, 10);
-
-  // 4. Mettre à jour l'utilisateur
-  return this.prisma.utilisateur.update({
-    where: { id: utilisateur.id },
-    data: {
-      motDePasse: hashedPassword,
-      registrationToken: null,
-      tokenExpiresAt: null,
-      isActive: true,
-    },
-  });
-}
 }

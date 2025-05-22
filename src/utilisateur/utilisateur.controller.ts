@@ -97,23 +97,4 @@ async findChefsEquipe() {
     return { totalResponsables: await this.utilisateursService.countResponsables() };
   }
 
-  
-  @Post('finaliser-inscription')
-@ApiOperation({ summary: 'Finaliser l\'inscription après approbation' })
-@ApiBody({
-  description: 'Token et mot de passe pour finaliser l\'inscription',
-  type: Object,
-  schema: {
-    example: {
-      token: 'token-d-activation',
-      motDePasse: 'NouveauMotDePasse123!'
-    }
-  }
-})
-async finaliserInscription(@Body() body: { token: string; motDePasse: string }) {
-  if (!body.token || !body.motDePasse) {
-    throw new BadRequestException('Token et mot de passe sont requis');
-  }
-  return this.utilisateursService.finaliserInscription(body.token, body.motDePasse);
-}
 }

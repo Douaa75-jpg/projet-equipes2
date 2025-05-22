@@ -81,24 +81,24 @@ export class DemandeController {
   }
 
   @Patch(':id')
-  async update(
-    @Param('id') id: string,
-    @Body() data: Partial<CreateDemandeDto> & { userId?: string },
-    @Body('userId') userId: string
-  ) {
-    try {
-      const result = await this.demandeService.update(id, { ...data, userId }, userId);
-      return {
-        success: true,
-        data: result
-      };
-    } catch (e) {
-      throw new HttpException({
-        success: false,
-        message: e.message
-      }, HttpStatus.BAD_REQUEST);
-    }
+async update(
+  @Param('id') id: string,
+  @Body() data: Partial<CreateDemandeDto>,
+  @Body('userId') userId: string
+) {
+  try {
+    const result = await this.demandeService.update(id, data, userId);
+    return {
+      success: true,
+      data: result
+    };
+  } catch (e) {
+    throw new HttpException({
+      success: false,
+      message: e.message
+    }, HttpStatus.BAD_REQUEST);
   }
+}
 
   
 @Get('equipe/en-conge/:responsableId')

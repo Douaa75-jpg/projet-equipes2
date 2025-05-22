@@ -374,10 +374,13 @@ export class DemandeService {
       }
     }
 
+    // Remove userId from the update data as it's not part of the model
+    const { userId: _, ...updateData } = data;
+
     return this.prisma.demande.update({
       where: { id },
       data: {
-        ...data,
+        ...updateData,
         dateDebut: dateDebut.toISOString(),
         dateFin: dateFin ? dateFin.toISOString() : null
       },

@@ -54,4 +54,5 @@ export class CreateUtilisateurDto {
   @IsString()
 @IsNotEmpty()
 entrepriseCode: string;
+
 }
